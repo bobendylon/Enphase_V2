@@ -25,6 +25,7 @@
 #include "module_msunpv.h"
 #include "module_stats.h"
 #include "module_sd.h"
+#include "module_tempo.h"
 
 // VARIABLES GLOBALES
 // V3.2 - Preferences
@@ -210,6 +211,8 @@ void handleSaveScreens();
 void handleSaveDateFormat();
 // Luminosité écran (page Info)
 void handleSaveBrightness();
+// EDF TEMPO (page Info)
+void handleSaveTempoConfig();
 void applyNightMode();
 // saveHistoData() est maintenant dans module_stats (stats_update)
 // V3.2 - Preferences et pages web
@@ -590,6 +593,7 @@ void setup() {
   // V14.0 - Format de date
   server.on("/saveDateFormat", HTTP_POST, handleSaveDateFormat);
   server.on("/saveBrightness", HTTP_POST, handleSaveBrightness);
+  server.on("/saveTempoConfig", HTTP_POST, handleSaveTempoConfig);
   // V12.5 - Alarme
   server.on("/alarm/set", handleAlarmSet);
   // V3.2 - Nouvelles routes configuration
@@ -802,6 +806,11 @@ void loop() {
   // Enphase Envoy (V12.0 - V11.0 Module) - Mise à jour toutes les 10 secondes
   if (wifiConnected) {
     enphase_update();
+  }
+  
+  // EDF TEMPO - fetch au démarrage puis toutes les 30 min, rollover à minuit
+  if (wifiConnected) {
+    tempo_update();
   }
   
   // Mise à jour UI
@@ -2056,6 +2065,35 @@ void handleInfoWeb() {
   html += "<p><span class='label'>Condition:</span> <span class='value'>" + weather_condition + "</span></p>";
   html += "<p style='margin-top:10px'><a href='/weather' class='btn' style='display:inline-block'>⚙️ Configurer</a></p></div>";
   
+  // EDF TEMPO (option activable, affichage vert pour Demain après minuit)
+  {
+    String tc = tempo_today_color.length() > 0 ? tempo_today_color : "--";
+    String tm = tempo_tomorrow_pending ? String("En attente") : (tempo_tomorrow_color.length() > 0 ? tempo_tomorrow_color : "--");
+    String colorToday = "#6b7280";
+    if (tempo_today_color == "Bleu") colorToday = "#3b82f6";
+    else if (tempo_today_color == "Blanc") colorToday = "#94a3b8";
+    else if (tempo_today_color == "Rouge") colorToday = "#ef4444";
+    String colorTomorrow = tempo_tomorrow_pending ? "#22c55e" : "#6b7280";
+    if (!tempo_tomorrow_pending && tempo_tomorrow_color == "Bleu") colorTomorrow = "#3b82f6";
+    else if (!tempo_tomorrow_pending && tempo_tomorrow_color == "Blanc") colorTomorrow = "#94a3b8";
+    else if (!tempo_tomorrow_pending && tempo_tomorrow_color == "Rouge") colorTomorrow = "#ef4444";
+    html += "<div class='card'><h2>⚡ EDF TEMPO</h2>";
+    html += "<p><span class='label'>Activer:</span> <button type='button' onclick='saveTempoEnabled(" + String(tempo_enabled ? "0" : "1") + ")' class='btn' style='display:inline-block;cursor:pointer;border:none;background:" + String(tempo_enabled ? "#ef4444" : "#22c55e") + ";padding:8px 14px'>" + String(tempo_enabled ? "Désactiver" : "Activer") + "</button></p>";
+    html += "<p><span class='label'>Aujourd'hui:</span> <span class='value' style='color:" + colorToday + ";font-weight:700'>" + tc + "</span></p>";
+    html += "<p><span class='label'>Demain:</span> <span class='value' style='color:" + colorTomorrow + ";font-weight:700;background:" + String(tempo_tomorrow_pending ? "#22c55e" : "transparent") + ";padding:2px 8px;border-radius:4px'>" + tm + "</span></p>";
+    if (tempo_last_fetch_time > 0) {
+      struct tm *t = localtime(&tempo_last_fetch_time);
+      if (t) {
+        char buf[32];
+        sprintf(buf, "%02d/%02d %02d:%02d", t->tm_mday, t->tm_mon + 1, t->tm_hour, t->tm_min);
+        html += "<p><span class='label'>Dernière récup.:</span> <span class='value'>" + String(buf) + "</span></p>";
+      }
+    } else {
+      html += "<p><span class='label'>Dernière récup.:</span> <span class='value'>—</span></p>";
+    }
+    html += "<p style='color:#6b7280;font-size:0.9em'>À minuit, Demain passe en vert jusqu'à réception du nouveau jour. Rafraîchissement toutes les 30 min.</p></div>";
+  }
+  
   // V12.1 - Rotation écran + V15.0 Sélection écran
   html += "<div class='card'><h2>🖥️ Écran</h2>";
   html += "<p><span class='label'>Écran actif:</span> <span class='value' style='color:" + String(activeScreenType == 1 ? "#f59e0b" : "#fff") + "'>" + String(activeScreenType == 1 ? "Enphase (date orange)" : "MQTT (date blanche)") + "</span></p>";
@@ -2256,6 +2294,26 @@ function saveBrightness() {
   });
 }
 
+function saveTempoEnabled(value) {
+  fetch('/saveTempoConfig', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'enabled=' + value
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    } else {
+      alert('Erreur: ' + (data.error || 'Unknown'));
+    }
+  })
+  .catch(error => {
+    console.error('Erreur:', error);
+    alert('Erreur de connexion');
+  });
+}
+
 </script>)";
   
   html += "</body></html>";
@@ -2264,7 +2322,7 @@ function saveBrightness() {
 
 // Export config (téléchargement JSON)
 void handleExportConfig() {
-  StaticJsonDocument<4096> doc;
+  JsonDocument doc;
   doc["version"] = 1;
   doc["exported_at"] = (unsigned long)time(nullptr);
   doc[PREF_WIFI_SSID] = config_wifi_ssid;
@@ -2312,6 +2370,7 @@ void handleExportConfig() {
   doc[PREF_DATE_FORMAT] = dateFormatIndex;
   doc[PREF_BRIGHTNESS_DAY] = (int)brightnessDay;
   doc[PREF_BRIGHTNESS_NIGHT] = (int)brightnessNight;
+  doc[PREF_TEMPO_ENABLED] = tempo_enabled;
   String out;
   serializeJson(doc, out);
   server.sendHeader("Content-Disposition", "attachment; filename=\"msunpv_config.json\"");
@@ -2329,7 +2388,7 @@ void handleImportConfig() {
     server.send(400, "application/json", "{\"ok\":false,\"err\":\"Body vide\"}");
     return;
   }
-  StaticJsonDocument<4096> doc;
+  JsonDocument doc;
   DeserializationError err = deserializeJson(doc, body);
   if (err) {
     server.send(400, "application/json", "{\"ok\":false,\"err\":\"JSON invalide\"}");
@@ -2351,6 +2410,10 @@ void handleImportConfig() {
     } else if (strcmp(k, PREF_BRIGHTNESS_DAY) == 0 || strcmp(k, PREF_BRIGHTNESS_NIGHT) == 0) {
       if (v.is<int>()) { int n = v.as<int>(); if (n >= 0 && n <= 255) preferences.putUChar(k, (uint8_t)n); }
       else if (v.is<long>()) { long n = v.as<long>(); if (n >= 0 && n <= 255) preferences.putUChar(k, (uint8_t)n); }
+    } else if (strcmp(k, PREF_TEMPO_ENABLED) == 0) {
+      if (v.is<bool>()) { tempo_setEnabled(v.as<bool>()); preferences.putBool(k, v.as<bool>()); }
+      else if (v.is<int>()) { bool b = (v.as<int>() != 0); tempo_setEnabled(b); preferences.putBool(k, b); }
+      else if (v.is<long>()) { bool b = (v.as<long>() != 0); tempo_setEnabled(b); preferences.putBool(k, b); }
     } else {
       if (v.is<const char*>() || v.is<String>()) preferences.putString(k, v.as<const char*>());
     }
@@ -2678,6 +2741,18 @@ void handleSaveBrightness() {
   }
 }
 
+// EDF TEMPO (page Info)
+void handleSaveTempoConfig() {
+  if (server.hasArg("enabled")) {
+    tempo_setEnabled(server.arg("enabled") == "1");
+    savePreferences();
+    server.send(200, "application/json", "{\"success\":true}");
+    Serial.println("[Info] TEMPO: " + String(tempo_enabled ? "activé" : "désactivé"));
+  } else {
+    server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing enabled\"}");
+  }
+}
+
 void handleSettingsWeb() {
   String html = "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><link rel='icon' type='image/svg+xml' href='/favicon.ico'><title>Paramètres - MSunPV V3.1</title>";
   html += "<style>body{background:#0c0a09;color:#fff;font-family:Arial;padding:20px;margin:0}";
@@ -2830,6 +2905,9 @@ void loadPreferences() {
   // Enphase Envoy (V12.0 - V11.0 Module)
   enphase_loadConfig(&preferences);
   
+  // EDF TEMPO (option activable)
+  tempo_loadConfig(preferences);
+  
   // V12.1 - Rotation écran
   screenFlipped = preferences.getBool(PREF_SCREEN_FLIPPED, false);
   
@@ -2869,6 +2947,9 @@ void savePreferences() {
   
   // Enphase Envoy (V12.0 - V11.0 Module)
   enphase_saveConfig(&preferences);
+  
+  // EDF TEMPO
+  tempo_saveConfig(preferences);
   
   // V12.1 - Rotation écran
   preferences.putBool(PREF_SCREEN_FLIPPED, screenFlipped);

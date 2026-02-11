@@ -221,6 +221,9 @@ const int MSUNPV_UPDATE_INTERVAL = 10000;       // 10 secondes
 #define PREF_BRIGHTNESS_DAY "brightness_day"
 #define PREF_BRIGHTNESS_NIGHT "brightness_night"
 
+// EDF TEMPO (couleur du jour, option activable)
+#define PREF_TEMPO_ENABLED "tempo_enabled"
+
 // ============================================
 // MODE AP (FALLBACK) - V3.3
 // ============================================

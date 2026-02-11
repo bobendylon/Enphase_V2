@@ -9,6 +9,7 @@
 #include "weather_icons.h"
 #include "module_weather.h"
 #include "module_enphase.h"
+#include "module_tempo.h"
 
 // Icônes header WiFi / MQTT / Shelly / Enphase / Réglages (déclarations extern des .c du projet)
 extern const lv_image_dsc_t wifi_cercle_vert;
@@ -122,9 +123,9 @@ lv_obj_t *led_ep_settings;
 lv_obj_t *label_ep_weather_city;
 lv_obj_t *img_ep_weather_icon;
 lv_obj_t *label_ep_weather_temp;
-lv_obj_t *label_ep_weather_day[6];
-lv_obj_t *img_ep_weather_icon_day[6];
-lv_obj_t *label_ep_weather_temp_day[6];
+lv_obj_t *label_ep_weather_day[5];
+lv_obj_t *img_ep_weather_icon_day[5];
+lv_obj_t *label_ep_weather_temp_day[5];
 // Zone flux Enphase (PV → Maison → Réseau)
 lv_obj_t *zone_flow_left_ep = NULL;
 lv_obj_t *img_flow_pv_ep = NULL;
@@ -700,7 +701,7 @@ void createMainScreen() {
   lv_label_set_text(label_prod_unit, "W");
   lv_obj_set_style_text_color(label_prod_unit, lv_color_hex(COLOR_PROD), 0);
   lv_obj_set_style_text_font(label_prod_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_prod_unit, 165, 46);
+  lv_obj_set_pos(label_prod_unit, 145, 46);
   
   // Consommation (centrée) — remonté 15 px
   lv_obj_t *label_conso_title = lv_label_create(card_left);
@@ -724,7 +725,7 @@ void createMainScreen() {
   lv_label_set_text(label_conso_unit, "W");
   lv_obj_set_style_text_color(label_conso_unit, lv_color_hex(COLOR_CONSO), 0);
   lv_obj_set_style_text_font(label_conso_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_conso_unit, 165, 118);
+  lv_obj_set_pos(label_conso_unit, 145, 118);
   
   // CONSO JOUR (centrée) — remonté pour zone flux 80 px en bas
   lv_obj_t *label_conso_jour_title = lv_label_create(card_left);
@@ -1093,31 +1094,31 @@ void createEnphaseScreen() {
   lv_label_set_text(label_prod_unit, "W");
   lv_obj_set_style_text_color(label_prod_unit, lv_color_hex(COLOR_PROD), 0);
   lv_obj_set_style_text_font(label_prod_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_prod_unit, 165, 46);
+  lv_obj_set_pos(label_prod_unit, 145, 46);
   
-  // CONSO MAISON (live Enphase - peut être négatif)
+  // CONSO MAISON (live Enphase - peut être négatif) — descendu 10 px
   lv_obj_t *label_conso_title = lv_label_create(card_left);
   lv_label_set_text(label_conso_title, "CONSO MAISON");
   lv_obj_set_style_text_color(label_conso_title, lv_color_hex(0xd1d5db), 0);
   lv_obj_set_style_text_font(label_conso_title, &lv_font_montserrat_16, 0);
-  lv_obj_set_pos(label_conso_title, 0, 80);
+  lv_obj_set_pos(label_conso_title, 0, 90);
   
   lv_obj_t *img_conso_icon = lv_img_create(card_left);
   lv_img_set_src(img_conso_icon, &reseau_electrique);
   lv_img_set_zoom(img_conso_icon, 300);
-  lv_obj_set_pos(img_conso_icon, 0, 105);
+  lv_obj_set_pos(img_conso_icon, 0, 115);
   
   label_ep_conso = lv_label_create(card_left);
   lv_label_set_text(label_ep_conso, "0");
   lv_obj_set_style_text_color(label_ep_conso, lv_color_hex(COLOR_CONSO), 0);
   lv_obj_set_style_text_font(label_ep_conso, &lv_font_montserrat_38, 0);
-  lv_obj_set_pos(label_ep_conso, 60, 105);
+  lv_obj_set_pos(label_ep_conso, 60, 115);
   
   lv_obj_t *label_conso_unit = lv_label_create(card_left);
   lv_label_set_text(label_conso_unit, "W");
   lv_obj_set_style_text_color(label_conso_unit, lv_color_hex(COLOR_CONSO), 0);
   lv_obj_set_style_text_font(label_conso_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_conso_unit, 165, 118);
+  lv_obj_set_pos(label_conso_unit, 145, 128);
   
   // ============================================
   // CARTE DROITE (Prod jour, Conso jour)
@@ -1150,7 +1151,7 @@ void createEnphaseScreen() {
   lv_label_set_text(label_prod_jour_unit, "kWh");
   lv_obj_set_style_text_color(label_prod_jour_unit, lv_color_hex(COLOR_PROD), 0);
   lv_obj_set_style_text_font(label_prod_jour_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_prod_jour_unit, 75, 52);
+  lv_obj_set_pos(label_prod_jour_unit, 145, 52);
   
   // CONSO JOUR (kWh) — idem
   lv_obj_t *label_conso_jour_title = lv_label_create(card_right);
@@ -1169,7 +1170,7 @@ void createEnphaseScreen() {
   lv_label_set_text(label_conso_jour_unit, "kWh");
   lv_obj_set_style_text_color(label_conso_jour_unit, lv_color_hex(COLOR_CONSO), 0);
   lv_obj_set_style_text_font(label_conso_jour_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_conso_jour_unit, 75, 154);
+  lv_obj_set_pos(label_conso_jour_unit, 145, 154);
   
   // ============================================
   // CARTE HORIZONTALE (Flux réseau 2/3 + réserve 1/3 droite) — 10 px au-dessus et en dessous
@@ -1241,14 +1242,14 @@ void createEnphaseScreen() {
   label_flow_pv_val_ep = lv_label_create(zone_flow_left_ep);
   lv_label_set_text(label_flow_pv_val_ep, "0 W");
   lv_obj_set_style_text_color(label_flow_pv_val_ep, lv_color_hex(COLOR_GRAY), 0);
-  lv_obj_set_style_text_font(label_flow_pv_val_ep, &lv_font_montserrat_16, 0);  // plus petit que 20
+  lv_obj_set_style_text_font(label_flow_pv_val_ep, &lv_font_montserrat_14, 0);  // était 16 → 14
   lv_obj_align_to(label_flow_pv_val_ep, img_arrow_pv_house_ep, LV_ALIGN_OUT_BOTTOM_MID, -10, 2);
   lv_obj_add_flag(label_flow_pv_val_ep, LV_OBJ_FLAG_HIDDEN);
   
   label_flow_grid_val_ep = lv_label_create(zone_flow_left_ep);
   lv_label_set_text(label_flow_grid_val_ep, "0 W");
   lv_obj_set_style_text_color(label_flow_grid_val_ep, lv_color_hex(COLOR_GRAY), 0);
-  lv_obj_set_style_text_font(label_flow_grid_val_ep, &lv_font_montserrat_16, 0);  // plus petit que 20
+  lv_obj_set_style_text_font(label_flow_grid_val_ep, &lv_font_montserrat_14, 0);  // était 16 → 14
   lv_obj_align_to(label_flow_grid_val_ep, img_arrow_house_grid_ep, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
   lv_obj_add_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
   
@@ -1281,8 +1282,8 @@ void createEnphaseScreen() {
   
   img_ep_weather_icon = lv_img_create(footer);
   lv_img_set_src(img_ep_weather_icon, &icon_sun);
-  lv_img_set_zoom(img_ep_weather_icon, 200);
-  lv_obj_align(img_ep_weather_icon, LV_ALIGN_LEFT_MID, 0, 0);
+  lv_img_set_zoom(img_ep_weather_icon, 333);  // 130%
+  lv_obj_align(img_ep_weather_icon, LV_ALIGN_LEFT_MID, 48, 11);  // +10 px droite, +5 px bas
   
   label_ep_weather_temp = lv_label_create(footer);
   lv_label_set_text(label_ep_weather_temp, "--°C");
@@ -1290,9 +1291,10 @@ void createEnphaseScreen() {
   lv_obj_set_style_text_font(label_ep_weather_temp, &lv_font_montserrat_20, 0);
   lv_obj_align(label_ep_weather_temp, LV_ALIGN_LEFT_MID, 0, 25);
   
-  // Droite : 6 jours (même taille icône zoom 200 que gauche, pas de scroll)
-  int col_w = 55;
-  for (int i = 0; i < 6; i++) {
+  // Droite : 5 jours J+1 à J+5 (même largeur totale qu'avant pour 6 : 330 px)
+  int total_forecast_w = 330;  // 6*55 avant
+  int col_w = total_forecast_w / 5;  // 66 px par colonne
+  for (int i = 0; i < 5; i++) {
     lv_obj_t *col = lv_obj_create(footer);
     lv_obj_set_size(col, col_w, footer_h - 20);
     lv_obj_set_pos(col, 115 + i * col_w, 0);
@@ -1310,8 +1312,8 @@ void createEnphaseScreen() {
     
     img_ep_weather_icon_day[i] = lv_img_create(col);
     lv_img_set_src(img_ep_weather_icon_day[i], &icon_na);
-    lv_img_set_zoom(img_ep_weather_icon_day[i], 200);  // Même taille que gauche
-    lv_obj_align(img_ep_weather_icon_day[i], LV_ALIGN_CENTER, 0, -8);
+    lv_img_set_zoom(img_ep_weather_icon_day[i], 200);
+    lv_obj_align(img_ep_weather_icon_day[i], LV_ALIGN_CENTER, 0, -5);  // descendu 3 px (était -8)
     
     label_ep_weather_temp_day[i] = lv_label_create(col);
     lv_label_set_text(label_ep_weather_temp_day[i], "--°");
@@ -1823,14 +1825,36 @@ void updateMainUI() {
 void updateEnphaseUI() {
   char buffer[64];
   extern int dateFormatIndex;
+  const char* daysFull[] = {"Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"};
   const char* daysShort[] = {"Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."};
   const char* months[] = {"Jan.", "Fev.", "Mar.", "Avr.", "Mai", "Juin", "Juil.", "Aout", "Sep.", "Oct.", "Nov.", "Dec."};
   
   time_t now = time(NULL);
   struct tm *timeinfo = localtime(&now);
   
-  // Date (format abrégé) + Heure
-  sprintf(buffer, "%s %d %s %d", daysShort[timeinfo->tm_wday], timeinfo->tm_mday, months[timeinfo->tm_mon], timeinfo->tm_year + 1900);
+  // Date : même format configurable que l'écran principal (dateFormatIndex)
+  switch(dateFormatIndex) {
+    case 0:
+      sprintf(buffer, "%s %02d/%02d/%02d",
+              daysFull[timeinfo->tm_wday], timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year % 100);
+      break;
+    case 1:
+      sprintf(buffer, "%s %d %s %d",
+              daysShort[timeinfo->tm_wday], timeinfo->tm_mday, months[timeinfo->tm_mon], timeinfo->tm_year + 1900);
+      break;
+    case 2:
+      sprintf(buffer, "%02d/%02d/%04d",
+              timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year + 1900);
+      break;
+    case 3:
+      sprintf(buffer, "%s %02d/%02d/%04d",
+              daysShort[timeinfo->tm_wday], timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year + 1900);
+      break;
+    default:
+      sprintf(buffer, "%s %d %s %d",
+              daysShort[timeinfo->tm_wday], timeinfo->tm_mday, months[timeinfo->tm_mon], timeinfo->tm_year + 1900);
+      break;
+  }
   lv_label_set_text(label_ep_date, buffer);
   lv_obj_set_style_text_color(label_ep_date, lv_color_hex(0xf59e0b), 0);
   
@@ -1899,15 +1923,49 @@ void updateEnphaseUI() {
   sprintf(buffer, "%.0f°C", weather_temp);
   lv_label_set_text(label_ep_weather_temp, buffer);
   
-  // 6 jours prévision
-  for (int i = 0; i < 6; i++) {
-    char dayStr[2] = {weather_forecast_days[i], '\0'};
-    lv_label_set_text(label_ep_weather_day[i], dayStr);
-    if (weather_forecast_codes[i] > 0) {
-      lv_img_set_src(img_ep_weather_icon_day[i], weather_getIconFromCode(weather_forecast_codes[i]));
+  // 5 jours prévision J+1 à J+5 — libellé = Lun, Mar, Mer, Jeu, Ven, Sam, Dim (3 lettres)
+  const char* daysShort3[] = {"Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"};
+  struct tm midnight = *timeinfo;
+  midnight.tm_hour = 0;
+  midnight.tm_min = 0;
+  midnight.tm_sec = 0;
+  time_t midnight_ts = mktime(&midnight);
+  for (int i = 0; i < 5; i++) {
+    time_t day_ts = midnight_ts + (time_t)(1 + i) * 86400;
+    struct tm *day_tm = localtime(&day_ts);
+    if (day_tm) {
+      lv_label_set_text(label_ep_weather_day[i], daysShort3[day_tm->tm_wday]);
+    } else {
+      lv_label_set_text(label_ep_weather_day[i], "-");
     }
-    sprintf(buffer, "%d°", weather_forecast_temps[i]);
-    lv_label_set_text(label_ep_weather_temp_day[i], buffer);
+    int idx = i + 1;  // forecast index 0 = aujourd'hui, 1 = J+1, ...
+    if (idx < 6 && weather_forecast_codes[idx] > 0) {
+      lv_img_set_src(img_ep_weather_icon_day[i], weather_getIconFromCode(weather_forecast_codes[idx]));
+    }
+    if (idx < 6) {
+      sprintf(buffer, "%d°", weather_forecast_temps[idx]);
+      lv_label_set_text(label_ep_weather_temp_day[i], buffer);
+    } else {
+      lv_label_set_text(label_ep_weather_temp_day[i], "--°");
+    }
+  }
+  
+  // Couleurs TEMPO si activé : ville = jour, J+1 = demain (vert si en attente après minuit)
+  if (tempo_enabled) {
+    uint32_t colorToday = 0xffffff;
+    if (tempo_today_color == "Bleu") colorToday = 0x3b82f6;
+    else if (tempo_today_color == "Blanc") colorToday = 0x94a3b8;
+    else if (tempo_today_color == "Rouge") colorToday = 0xef4444;
+    lv_obj_set_style_text_color(label_ep_weather_city, lv_color_hex(colorToday), 0);
+    uint32_t colorTomorrow = 0xd1d5db;
+    if (tempo_tomorrow_pending) colorTomorrow = 0x22c55e;
+    else if (tempo_tomorrow_color == "Bleu") colorTomorrow = 0x3b82f6;
+    else if (tempo_tomorrow_color == "Blanc") colorTomorrow = 0x94a3b8;
+    else if (tempo_tomorrow_color == "Rouge") colorTomorrow = 0xef4444;
+    lv_obj_set_style_text_color(label_ep_weather_day[0], lv_color_hex(colorTomorrow), 0);
+  } else {
+    lv_obj_set_style_text_color(label_ep_weather_city, lv_color_hex(0xffffff), 0);
+    lv_obj_set_style_text_color(label_ep_weather_day[0], lv_color_hex(0xd1d5db), 0);
   }
   
   // LEDs header

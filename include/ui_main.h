@@ -1072,7 +1072,7 @@ void createEnphaseScreen() {
   lv_obj_set_style_pad_all(card_left, 15, 0);
   lv_obj_clear_flag(card_left, LV_OBJ_FLAG_SCROLLABLE);
   
-  // PRODUCTION SOLAIRE
+  // PRODUCTION SOLAIRE — même grille verticale que carte droite (titre 8, ligne 40, unité 52, titre2 110, ligne2 142, unité 154)
   lv_obj_t *label_prod_title = lv_label_create(card_left);
   lv_label_set_text(label_prod_title, "PRODUCTION SOLAIRE");
   lv_obj_set_style_text_color(label_prod_title, lv_color_hex(0xd1d5db), 0);
@@ -1082,43 +1082,43 @@ void createEnphaseScreen() {
   lv_obj_t *img_prod_icon = lv_img_create(card_left);
   lv_img_set_src(img_prod_icon, &panneaux_solaires);
   lv_img_set_zoom(img_prod_icon, 300);
-  lv_obj_set_pos(img_prod_icon, 0, 33);
+  lv_obj_set_pos(img_prod_icon, 0, 40);
   
   label_ep_prod = lv_label_create(card_left);
   lv_label_set_text(label_ep_prod, "0");
   lv_obj_set_style_text_color(label_ep_prod, lv_color_hex(COLOR_PROD), 0);
   lv_obj_set_style_text_font(label_ep_prod, &lv_font_montserrat_38, 0);
-  lv_obj_set_pos(label_ep_prod, 60, 33);
+  lv_obj_set_pos(label_ep_prod, 60, 40);
   
   lv_obj_t *label_prod_unit = lv_label_create(card_left);
   lv_label_set_text(label_prod_unit, "W");
   lv_obj_set_style_text_color(label_prod_unit, lv_color_hex(COLOR_PROD), 0);
   lv_obj_set_style_text_font(label_prod_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_prod_unit, 145, 46);
+  lv_obj_set_pos(label_prod_unit, 145, 52);
   
-  // CONSO MAISON (live Enphase - peut être négatif) — descendu 10 px
+  // CONSO MAISON — aligné sur carte droite (titre 110, ligne 142, unité 154)
   lv_obj_t *label_conso_title = lv_label_create(card_left);
   lv_label_set_text(label_conso_title, "CONSO MAISON");
   lv_obj_set_style_text_color(label_conso_title, lv_color_hex(0xd1d5db), 0);
   lv_obj_set_style_text_font(label_conso_title, &lv_font_montserrat_16, 0);
-  lv_obj_set_pos(label_conso_title, 0, 90);
+  lv_obj_set_pos(label_conso_title, 0, 110);
   
   lv_obj_t *img_conso_icon = lv_img_create(card_left);
   lv_img_set_src(img_conso_icon, &reseau_electrique);
   lv_img_set_zoom(img_conso_icon, 300);
-  lv_obj_set_pos(img_conso_icon, 0, 115);
+  lv_obj_set_pos(img_conso_icon, 0, 142);
   
   label_ep_conso = lv_label_create(card_left);
   lv_label_set_text(label_ep_conso, "0");
   lv_obj_set_style_text_color(label_ep_conso, lv_color_hex(COLOR_CONSO), 0);
   lv_obj_set_style_text_font(label_ep_conso, &lv_font_montserrat_38, 0);
-  lv_obj_set_pos(label_ep_conso, 60, 115);
+  lv_obj_set_pos(label_ep_conso, 60, 142);
   
   lv_obj_t *label_conso_unit = lv_label_create(card_left);
   lv_label_set_text(label_conso_unit, "W");
   lv_obj_set_style_text_color(label_conso_unit, lv_color_hex(COLOR_CONSO), 0);
   lv_obj_set_style_text_font(label_conso_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_conso_unit, 145, 128);
+  lv_obj_set_pos(label_conso_unit, 145, 154);
   
   // ============================================
   // CARTE DROITE (Prod jour, Conso jour)

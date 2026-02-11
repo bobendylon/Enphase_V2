@@ -211,6 +211,9 @@ const int MSUNPV_UPDATE_INTERVAL = 10000;       // 10 secondes
 // Rotation écran (V12.1)
 #define PREF_SCREEN_FLIPPED "screen_flipped"
 
+// Écran actif principal (V15.0) : 0=MQTT, 1=Enphase
+#define PREF_ACTIVE_SCREEN "active_screen"
+
 // Format de date (V14.0)
 #define PREF_DATE_FORMAT "date_format"
 

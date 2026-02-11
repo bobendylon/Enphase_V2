@@ -63,6 +63,9 @@ lv_obj_t *weather_icon = NULL;
 
 // LED sticky green (V10.0)
 extern bool ledLockedGreen;  // ← AJOUTER CETTE LIGNE
+
+// V15.0 - Écran actif : 0=MQTT, 1=Enphase (date orange)
+extern uint8_t activeScreenType;
 extern bool ledStartupLock;  // V10.0 - Verrouillage au démarrage
 extern unsigned long startupTime;  // V10.0 - Temps du démarrage
 extern bool mqttDataReceived;  // V10.0 - Flag données MQTT reçues
@@ -586,11 +589,11 @@ void createMainScreen() {
   lv_obj_set_scrollbar_mode(header, LV_SCROLLBAR_MODE_OFF);
   lv_obj_clear_flag(header, LV_OBJ_FLAG_SCROLLABLE);
   
-  // Date
+  // Date (V15.0: orange si Enphase, blanc si MQTT)
   label_date = lv_label_create(header);
   lv_label_set_text(label_date, "Jeudi 30/10/25");
   lv_obj_set_style_text_font(label_date, &lv_font_montserrat_20, 0);
-  lv_obj_set_style_text_color(label_date, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_color(label_date, lv_color_hex(activeScreenType == 1 ? 0xf59e0b : 0xffffff), 0);
   lv_obj_align(label_date, LV_ALIGN_LEFT_MID, 0, 0);
   
   // Heure (centrée)
@@ -1272,6 +1275,8 @@ void updateMainUI() {
       break;
   }
   lv_label_set_text(label_date, buffer);
+  // V15.0 - Couleur date : orange pour Enphase, blanc pour MQTT
+  lv_obj_set_style_text_color(label_date, lv_color_hex(activeScreenType == 1 ? 0xf59e0b : 0xffffff), 0);
   
   sprintf(buffer, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
   lv_label_set_text(label_time, buffer);

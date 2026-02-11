@@ -55,6 +55,9 @@ unsigned long startupTime = 0;  // Temps du démarrage
 // V12.1 - Rotation écran
 bool screenFlipped = false;
 
+// V15.0 - Écran actif : 0=MQTT (date blanche), 1=Enphase (date orange)
+uint8_t activeScreenType = 0;
+
 // V14.0 - Format de date (0=complet, 1=abrégé+mois, 2=compact, 3=abrégé+date)
 int dateFormatIndex = 1;  // Par défaut: "Dim. 28 Déc. 2025"
 
@@ -194,6 +197,9 @@ void handleRestart();
 void handleSDStatus();
 // V12.1 - Rotation écran
 void handleSaveScreenFlip();
+// V15.0 - Sélection écran MQTT / Enphase
+void handleScreensWeb();
+void handleSaveScreens();
 // V14.0 - Format de date
 void handleSaveDateFormat();
 void applyNightMode();
@@ -570,6 +576,9 @@ void setup() {
   server.on("/restart", HTTP_GET, handleRestart);
   // V12.1 - Rotation écran
   server.on("/saveScreenFlip", HTTP_POST, handleSaveScreenFlip);
+  // V15.0 - Sélection écran (MQTT / Enphase)
+  server.on("/screens", handleScreensWeb);
+  server.on("/saveScreens", HTTP_POST, handleSaveScreens);
   // V14.0 - Format de date
   server.on("/saveDateFormat", HTTP_POST, handleSaveDateFormat);
   // V12.5 - Alarme
@@ -2033,8 +2042,10 @@ void handleInfoWeb() {
   html += "<p><span class='label'>Condition:</span> <span class='value'>" + weather_condition + "</span></p>";
   html += "<p style='margin-top:10px'><a href='/weather' class='btn' style='display:inline-block'>⚙️ Configurer</a></p></div>";
   
-  // V12.1 - Rotation écran
+  // V12.1 - Rotation écran + V15.0 Sélection écran
   html += "<div class='card'><h2>🖥️ Écran</h2>";
+  html += "<p><span class='label'>Écran actif:</span> <span class='value' style='color:" + String(activeScreenType == 1 ? "#f59e0b" : "#fff") + "'>" + String(activeScreenType == 1 ? "Enphase (date orange)" : "MQTT (date blanche)") + "</span></p>";
+  html += "<p style='margin-top:10px'><a href='/screens' class='btn' style='display:inline-block;text-decoration:none;cursor:pointer;border:none'>🖥️ Choisir l'écran (MQTT / Enphase)</a></p>";
   html += "<p><span class='label'>Rotation:</span> <span class='value' style='color:" + String(screenFlipped ? "#22c55e" : "#9ca3af") + "'>" + String(screenFlipped ? "180° (Retourné)" : "0° (Normal)") + "</span></p>";
   html += "<p style='margin-top:15px'><button onclick='toggleScreenFlip()' class='btn' style='display:inline-block;cursor:pointer;border:none;background:" + String(screenFlipped ? "#ef4444" : "#22c55e") + "'>" + String(screenFlipped ? "↩️ Remettre Normal" : "🔄 Retourner 180°") + "</button></p>";
   html += "<p style='color:#6b7280;margin-top:10px;font-size:0.9em'>L'écran sera retourné immédiatement après sauvegarde</p></div>";
@@ -2252,6 +2263,7 @@ void handleExportConfig() {
   doc[PREF_ENPHASE_PWD] = config_enphase_pwd;
   doc[PREF_ENPHASE_SERIAL] = config_enphase_serial;
   doc[PREF_SCREEN_FLIPPED] = screenFlipped;
+  doc[PREF_ACTIVE_SCREEN] = activeScreenType;
   doc[PREF_DATE_FORMAT] = dateFormatIndex;
   String out;
   serializeJson(doc, out);
@@ -2284,6 +2296,9 @@ void handleImportConfig() {
     if (strcmp(k, PREF_MQTT_PORT) == 0 || strcmp(k, PREF_DATE_FORMAT) == 0) {
       if (v.is<int>()) preferences.putInt(k, v.as<int>());
       else if (v.is<long>()) preferences.putInt(k, (int)v.as<long>());
+    } else if (strcmp(k, PREF_ACTIVE_SCREEN) == 0) {
+      if (v.is<int>()) { uint8_t n = (uint8_t)v.as<int>(); if (n <= 1) preferences.putUChar(k, n); }
+      else if (v.is<long>()) { uint8_t n = (uint8_t)v.as<long>(); if (n <= 1) preferences.putUChar(k, n); }
     } else if (strcmp(k, PREF_SCREEN_FLIPPED) == 0) {
       if (v.is<bool>()) preferences.putBool(k, v.as<bool>());
     } else {
@@ -2323,6 +2338,75 @@ void handleSaveScreenFlip() {
     
     server.send(200, "application/json", "{\"success\":true,\"flipped\":" + String(screenFlipped ? "true" : "false") + "}");
     Serial.println("[V12.1] Rotation écran: " + String(screenFlipped ? "180°" : "0°"));
+  } else {
+    server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing parameter\"}");
+  }
+}
+
+// V15.0 - Page sélection écran (MQTT / Enphase)
+void handleScreensWeb() {
+  if (wifiAPMode) {
+    handleWiFiSetupPage();
+    return;
+  }
+  String html = R"(<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><link rel='icon' type='image/svg+xml' href='/favicon.ico'><title>Écran - MSunPV</title><style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;min-height:100vh;padding:24px}
+    .back{display:inline-block;background:#374151;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;margin-bottom:24px;transition:background .2s}
+    .back:hover{background:#4b5563}
+    h1{color:#fbbf24;margin-bottom:8px;font-size:1.8em}
+    .sub{color:#9ca3af;font-size:0.95em;margin-bottom:28px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;max-width:500px}
+    .card{background:rgba(41,37,36,0.9);border:2px solid rgba(251,191,36,0.25);border-radius:16px;padding:28px;cursor:pointer;transition:all .25s;text-align:center}
+    .card:hover{border-color:rgba(251,191,36,0.5);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.3)}
+    .card.selected{border-color:#f59e0b;background:rgba(245,158,11,0.1);box-shadow:0 0 0 2px rgba(245,158,11,0.3)}
+    .card .icon{font-size:2.5em;margin-bottom:12px}
+    .card .title{font-size:1.15em;font-weight:600;color:#fff;margin-bottom:6px}
+    .card .desc{font-size:0.85em;color:#9ca3af;line-height:1.4}
+    @media(max-width:480px){.grid{grid-template-columns:1fr}}
+  </style></head><body>)";
+  html += "<a href='/info' class='back'>&larr; Retour</a>";
+  html += "<h1>🖥️ Sélection de l'écran</h1>";
+  html += "<p class='sub'>Choisissez l'écran principal affiché sur le moniteur. La date est en blanc (MQTT) ou orange (Enphase).</p>";
+  html += "<div class='grid'>";
+  
+  // Carte MQTT
+  html += "<div class='card' id='card0' onclick='selectScreen(0)'";
+  if (activeScreenType == 0) html += " style='border-color:#f59e0b;background:rgba(245,158,11,0.1)'";
+  html += "><div class='icon'>📡</div><div class='title'>Écran MQTT</div><div class='desc'>Données Shelly, production, consommation. Date blanche.</div></div>";
+  
+  // Carte Enphase
+  html += "<div class='card' id='card1' onclick='selectScreen(1)'";
+  if (activeScreenType == 1) html += " style='border-color:#f59e0b;background:rgba(245,158,11,0.1)'";
+  html += "><div class='icon'>⚡</div><div class='title'>Écran Enphase</div><div class='desc'>Même affichage avec date orange.</div></div>";
+  
+  html += "</div>";
+  html += "<p style='color:#6b7280;margin-top:20px;font-size:0.9em'>Le changement s'applique immédiatement à l'écran.</p>";
+  html += R"(<script>
+    function selectScreen(n) {
+      fetch('/saveScreens', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'screen=' + n })
+        .then(r => r.json())
+        .then(d => { if (d.success) { document.querySelectorAll('.card').forEach(c => c.classList.remove('selected')); document.getElementById('card'+n).classList.add('selected'); document.getElementById('card'+n).style.borderColor='#f59e0b'; document.getElementById('card'+n).style.background='rgba(245,158,11,0.1)'; var o=1-n; document.getElementById('card'+o).style.borderColor=''; document.getElementById('card'+o).style.background=''; } });
+    }
+  </script></body></html>)";
+  server.send(200, "text/html", html);
+}
+
+void handleSaveScreens() {
+  if (server.hasArg("screen")) {
+    uint8_t n = (uint8_t)server.arg("screen").toInt();
+    if (n <= 1) {
+      activeScreenType = n;
+      savePreferences();
+      if (screenMain) {
+        lv_obj_invalidate(screenMain);
+      }
+      lv_refr_now(disp);
+      server.send(200, "application/json", "{\"success\":true,\"screen\":" + String(n) + "}");
+      Serial.println("[V15.0] Écran: " + String(n ? "Enphase" : "MQTT"));
+    } else {
+      server.send(400, "application/json", "{\"success\":false,\"error\":\"Invalid value\"}");
+    }
   } else {
     server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing parameter\"}");
   }
@@ -2677,6 +2761,9 @@ void loadPreferences() {
   // V12.1 - Rotation écran
   screenFlipped = preferences.getBool(PREF_SCREEN_FLIPPED, false);
   
+  // V15.0 - Écran actif (MQTT vs Enphase)
+  activeScreenType = preferences.getUChar(PREF_ACTIVE_SCREEN, 0);
+  
   // V14.0 - Format de date
   dateFormatIndex = preferences.getInt(PREF_DATE_FORMAT, 1);  // Défaut: format abrégé
   
@@ -2709,6 +2796,9 @@ void savePreferences() {
   
   // V12.1 - Rotation écran
   preferences.putBool(PREF_SCREEN_FLIPPED, screenFlipped);
+  
+  // V15.0 - Écran actif
+  preferences.putUChar(PREF_ACTIVE_SCREEN, activeScreenType);
   
   // V14.0 - Format de date
   preferences.putInt(PREF_DATE_FORMAT, dateFormatIndex);

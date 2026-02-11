@@ -56,7 +56,7 @@ unsigned long startupTime = 0;  // Temps du démarrage
 // V12.1 - Rotation écran
 bool screenFlipped = false;
 
-// V15.0 - Écran actif : 0=MQTT (date blanche), 1=Enphase (date orange)
+// V15.0 - Écran actif : 0=MQTT (date blanche), 1=Enphase (date orange), 2=M'SunPV (date verte)
 uint8_t activeScreenType = 0;
 
 // V14.0 - Format de date (0=complet, 1=abrégé+mois, 2=compact, 3=abrégé+date)
@@ -668,7 +668,7 @@ void setup() {
   createMainScreen();
   createEnphaseScreen();  // V15.0 - Écran Enphase
   createSettingsScreen();
-  lv_screen_load(activeScreenType == 1 ? screenEnphase : screenMain);
+  lv_screen_load(activeScreenType == 0 ? screenMain : screenEnphase);  // 1=Enphase, 2=M'SunPV
   
   // ✅ Forcer 3 rafraîchissements AVANT d'allumer (LVGL prêt)
   for (int i = 0; i < 3; i++) {
@@ -852,6 +852,8 @@ void updateUI() {
   if (currentPage == 0) {
     if (activeScreenType == 1 && screenEnphase) {
       updateEnphaseUI();
+    } else if (activeScreenType == 2 && screenEnphase) {
+      updateMSunPVUI();
     } else if (screenMain) {
       updateMainUI();
     }
@@ -2096,8 +2098,8 @@ void handleInfoWeb() {
   
   // V12.1 - Rotation écran + V15.0 Sélection écran
   html += "<div class='card'><h2>🖥️ Écran</h2>";
-  html += "<p><span class='label'>Écran actif:</span> <span class='value' style='color:" + String(activeScreenType == 1 ? "#f59e0b" : "#fff") + "'>" + String(activeScreenType == 1 ? "Enphase (date orange)" : "MQTT (date blanche)") + "</span></p>";
-  html += "<p style='margin-top:10px'><a href='/screens' class='btn' style='display:inline-block;text-decoration:none;cursor:pointer;border:none'>🖥️ Choisir l'écran (MQTT / Enphase)</a></p>";
+  html += "<p><span class='label'>Écran actif:</span> <span class='value' style='color:" + String(activeScreenType == 1 ? "#f59e0b" : (activeScreenType == 2 ? "#22c55e" : "#fff")) + "'>" + String(activeScreenType == 0 ? "MQTT (date blanche)" : (activeScreenType == 1 ? "Enphase (date orange)" : "M'SunPV (date verte)")) + "</span></p>";
+  html += "<p style='margin-top:10px'><a href='/screens' class='btn' style='display:inline-block;text-decoration:none;cursor:pointer;border:none'>🖥️ Choisir l'écran (MQTT / Enphase / M'SunPV)</a></p>";
   html += "<p><span class='label'>Rotation:</span> <span class='value' style='color:" + String(screenFlipped ? "#22c55e" : "#9ca3af") + "'>" + String(screenFlipped ? "180° (Retourné)" : "0° (Normal)") + "</span></p>";
   html += "<p style='margin-top:15px'><button onclick='toggleScreenFlip()' class='btn' style='display:inline-block;cursor:pointer;border:none;background:" + String(screenFlipped ? "#ef4444" : "#22c55e") + "'>" + String(screenFlipped ? "↩️ Remettre Normal" : "🔄 Retourner 180°") + "</button></p>";
   html += "<p style='color:#6b7280;margin-top:10px;font-size:0.9em'>L'écran sera retourné immédiatement après sauvegarde</p></div>";
@@ -2403,8 +2405,8 @@ void handleImportConfig() {
       if (v.is<int>()) preferences.putInt(k, v.as<int>());
       else if (v.is<long>()) preferences.putInt(k, (int)v.as<long>());
     } else if (strcmp(k, PREF_ACTIVE_SCREEN) == 0) {
-      if (v.is<int>()) { uint8_t n = (uint8_t)v.as<int>(); if (n <= 1) preferences.putUChar(k, n); }
-      else if (v.is<long>()) { uint8_t n = (uint8_t)v.as<long>(); if (n <= 1) preferences.putUChar(k, n); }
+      if (v.is<int>()) { uint8_t n = (uint8_t)v.as<int>(); if (n <= 2) preferences.putUChar(k, n); }
+      else if (v.is<long>()) { uint8_t n = (uint8_t)v.as<long>(); if (n <= 2) preferences.putUChar(k, n); }
     } else if (strcmp(k, PREF_SCREEN_FLIPPED) == 0) {
       if (v.is<bool>()) preferences.putBool(k, v.as<bool>());
     } else if (strcmp(k, PREF_BRIGHTNESS_DAY) == 0 || strcmp(k, PREF_BRIGHTNESS_NIGHT) == 0) {
@@ -2480,7 +2482,7 @@ void handleScreensWeb() {
   </style></head><body>)";
   html += "<a href='/info' class='back'>&larr; Retour</a>";
   html += "<h1>🖥️ Sélection de l'écran</h1>";
-  html += "<p class='sub'>Choisissez l'écran principal affiché sur le moniteur. La date est en blanc (MQTT) ou orange (Enphase).</p>";
+  html += "<p class='sub'>Choisissez l'écran principal. Date : blanche (MQTT), orange (Enphase), verte (M'SunPV).</p>";
   html += "<div class='grid'>";
   
   // Carte MQTT
@@ -2493,13 +2495,18 @@ void handleScreensWeb() {
   if (activeScreenType == 1) html += " style='border-color:#f59e0b;background:rgba(245,158,11,0.1)'";
   html += "><div class='icon'>⚡</div><div class='title'>Écran Enphase</div><div class='desc'>Même affichage avec date orange.</div></div>";
   
+  // Carte M'SunPV
+  html += "<div class='card' id='card2' onclick='selectScreen(2)'";
+  if (activeScreenType == 2) html += " style='border-color:#f59e0b;background:rgba(245,158,11,0.1)'";
+  html += "><div class='icon'>🌡</div><div class='title'>Écran M'SunPV</div><div class='desc'>Données routeur M'SunPV, routage, conso jour. Date verte.</div></div>";
+  
   html += "</div>";
   html += "<p style='color:#6b7280;margin-top:20px;font-size:0.9em'>Le changement s'applique immédiatement à l'écran.</p>";
   html += R"(<script>
     function selectScreen(n) {
       fetch('/saveScreens', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'screen=' + n })
         .then(r => r.json())
-        .then(d => { if (d.success) { document.querySelectorAll('.card').forEach(c => c.classList.remove('selected')); document.getElementById('card'+n).classList.add('selected'); document.getElementById('card'+n).style.borderColor='#f59e0b'; document.getElementById('card'+n).style.background='rgba(245,158,11,0.1)'; var o=1-n; document.getElementById('card'+o).style.borderColor=''; document.getElementById('card'+o).style.background=''; } });
+        .then(d => { if (d.success) { for (var i=0;i<=2;i++) { var c=document.getElementById('card'+i); if(c){ c.style.borderColor=(i==n)?'#f59e0b':''; c.style.background=(i==n)?'rgba(245,158,11,0.1)':''; } } } });
     }
   </script></body></html>)";
   server.send(200, "text/html", html);
@@ -2508,17 +2515,17 @@ void handleScreensWeb() {
 void handleSaveScreens() {
   if (server.hasArg("screen")) {
     uint8_t n = (uint8_t)server.arg("screen").toInt();
-    if (n <= 1) {
+    if (n <= 2) {
       activeScreenType = n;
       savePreferences();
       if (currentPage == 0) {
-        lv_screen_load(n == 1 ? screenEnphase : screenMain);
+        lv_screen_load(n == 0 ? screenMain : screenEnphase);  // 1=Enphase, 2=M'SunPV réutilise screenEnphase
       }
       if (screenMain) lv_obj_invalidate(screenMain);
       if (screenEnphase) lv_obj_invalidate(screenEnphase);
       lv_refr_now(disp);
       server.send(200, "application/json", "{\"success\":true,\"screen\":" + String(n) + "}");
-      Serial.println("[V15.0] Écran: " + String(n ? "Enphase" : "MQTT"));
+      Serial.println("[V15.0] Écran: " + String(n == 0 ? "MQTT" : (n == 1 ? "Enphase" : "M'SunPV")));
     } else {
       server.send(400, "application/json", "{\"success\":false,\"error\":\"Invalid value\"}");
     }
@@ -2530,7 +2537,7 @@ void handleSaveScreens() {
 // Page Réglages (écran LVGL, roue dentée)
 void settings_back_to_main(void) {
   currentPage = 0;
-  lv_screen_load(activeScreenType == 1 ? screenEnphase : screenMain);
+  lv_screen_load(activeScreenType == 0 ? screenMain : screenEnphase);  // 1=Enphase, 2=M'SunPV
 }
 
 void settings_do_restart(void) {

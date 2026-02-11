@@ -9,6 +9,7 @@
 #include "weather_icons.h"
 #include "module_weather.h"
 #include "module_enphase.h"
+#include "module_msunpv.h"
 #include "module_tempo.h"
 
 // Icônes header WiFi / MQTT / Shelly / Enphase / Réglages (déclarations extern des .c du projet)
@@ -115,6 +116,8 @@ lv_obj_t *label_ep_prod;
 lv_obj_t *label_ep_conso;
 lv_obj_t *label_ep_prod_jour;
 lv_obj_t *label_ep_conso_jour;
+lv_obj_t *label_ep_prod_jour_title = NULL;  // Titre ligne 1 carte droite (PRODUCTION JOUR / ROUTAGE)
+lv_obj_t *label_ep_prod_jour_unit = NULL;  // Unité ligne 1 (kWh / %)
 lv_obj_t *led_ep_wifi;
 lv_obj_t *led_ep_mqtt;
 lv_obj_t *led_ep_shelly;
@@ -1136,12 +1139,12 @@ void createEnphaseScreen() {
   lv_obj_set_style_pad_all(card_right, 15, 0);
   lv_obj_clear_flag(card_right, LV_OBJ_FLAG_SCROLLABLE);
   
-  // PRODUCTION JOUR (kWh) — valeur en 38, unité "kWh" en 20 comme carte gauche (W)
-  lv_obj_t *label_prod_jour_title = lv_label_create(card_right);
-  lv_label_set_text(label_prod_jour_title, "PRODUCTION JOUR");
-  lv_obj_set_style_text_color(label_prod_jour_title, lv_color_hex(0xd1d5db), 0);
-  lv_obj_set_style_text_font(label_prod_jour_title, &lv_font_montserrat_16, 0);
-  lv_obj_set_pos(label_prod_jour_title, 0, 8);
+  // PRODUCTION JOUR (kWh) — valeur en 38, unité "kWh" en 20 (titre/unité modifiables pour M'SunPV → ROUTAGE / %)
+  label_ep_prod_jour_title = lv_label_create(card_right);
+  lv_label_set_text(label_ep_prod_jour_title, "PRODUCTION JOUR");
+  lv_obj_set_style_text_color(label_ep_prod_jour_title, lv_color_hex(0xd1d5db), 0);
+  lv_obj_set_style_text_font(label_ep_prod_jour_title, &lv_font_montserrat_16, 0);
+  lv_obj_set_pos(label_ep_prod_jour_title, 0, 8);
   
   label_ep_prod_jour = lv_label_create(card_right);
   lv_label_set_text(label_ep_prod_jour, "0.0");
@@ -1149,11 +1152,11 @@ void createEnphaseScreen() {
   lv_obj_set_style_text_font(label_ep_prod_jour, &lv_font_montserrat_38, 0);
   lv_obj_set_pos(label_ep_prod_jour, 0, 40);
   
-  lv_obj_t *label_prod_jour_unit = lv_label_create(card_right);
-  lv_label_set_text(label_prod_jour_unit, "kWh");
-  lv_obj_set_style_text_color(label_prod_jour_unit, lv_color_hex(COLOR_PROD), 0);
-  lv_obj_set_style_text_font(label_prod_jour_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_prod_jour_unit, 145, 52);
+  label_ep_prod_jour_unit = lv_label_create(card_right);
+  lv_label_set_text(label_ep_prod_jour_unit, "kWh");
+  lv_obj_set_style_text_color(label_ep_prod_jour_unit, lv_color_hex(COLOR_PROD), 0);
+  lv_obj_set_style_text_font(label_ep_prod_jour_unit, &lv_font_montserrat_20, 0);
+  lv_obj_set_pos(label_ep_prod_jour_unit, 145, 52);
   
   // CONSO JOUR (kWh) — idem
   lv_obj_t *label_conso_jour_title = lv_label_create(card_right);
@@ -1881,6 +1884,9 @@ void updateEnphaseUI() {
   lv_label_set_text(label_ep_date, buffer);
   lv_obj_set_style_text_color(label_ep_date, lv_color_hex(0xf59e0b), 0);
   
+  if (label_ep_prod_jour_title) lv_label_set_text(label_ep_prod_jour_title, "PRODUCTION JOUR");
+  if (label_ep_prod_jour_unit) lv_label_set_text(label_ep_prod_jour_unit, "kWh");
+  
   sprintf(buffer, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
   lv_label_set_text(label_ep_time, buffer);
   
@@ -2008,6 +2014,186 @@ void updateEnphaseUI() {
   }
   
   // LEDs header
+  extern bool wifiConnected;
+  extern bool mqttConnected;
+  extern bool shelly1_connected;
+  extern bool shelly2_connected;
+  extern String config_shelly1_ip;
+  extern String config_shelly2_ip;
+  
+  lv_img_set_src(led_ep_wifi, wifiConnected ? &wifi_cercle_vert : &wifi_barre_oblique);
+  lv_img_set_src(led_ep_mqtt, mqttConnected ? &mqtt_png : &mqtt_png_gris);
+  bool shelly_ok = (config_shelly1_ip.length() == 0 || shelly1_connected) && (config_shelly2_ip.length() == 0 || shelly2_connected);
+  lv_img_set_src(led_ep_shelly, shelly_ok ? &Shelly32 : &Shelly32_gris);
+  lv_img_set_src(led_ep_enphase, enphase_connected ? &Enphase_logo : &Enphase_logo_gris);
+}
+
+// M'SunPV - Mise à jour écran (même layout qu'Enphase, date verte, données M'SunPV)
+void updateMSunPVUI() {
+  char buffer[64];
+  extern int dateFormatIndex;
+  const char* daysFull[] = {"Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"};
+  const char* daysShort[] = {"Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."};
+  const char* months[] = {"Jan.", "Fev.", "Mar.", "Avr.", "Mai", "Juin", "Juil.", "Aout", "Sep.", "Oct.", "Nov.", "Dec."};
+  
+  time_t now = time(NULL);
+  struct tm *timeinfo = localtime(&now);
+  
+  switch(dateFormatIndex) {
+    case 0:
+      sprintf(buffer, "%s %02d/%02d/%02d",
+              daysFull[timeinfo->tm_wday], timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year % 100);
+      break;
+    case 1:
+      sprintf(buffer, "%s %d %s %d",
+              daysShort[timeinfo->tm_wday], timeinfo->tm_mday, months[timeinfo->tm_mon], timeinfo->tm_year + 1900);
+      break;
+    case 2:
+      sprintf(buffer, "%02d/%02d/%04d",
+              timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year + 1900);
+      break;
+    case 3:
+      sprintf(buffer, "%s %02d/%02d/%04d",
+              daysShort[timeinfo->tm_wday], timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year + 1900);
+      break;
+    default:
+      sprintf(buffer, "%s %d %s %d",
+              daysShort[timeinfo->tm_wday], timeinfo->tm_mday, months[timeinfo->tm_mon], timeinfo->tm_year + 1900);
+      break;
+  }
+  lv_label_set_text(label_ep_date, buffer);
+  lv_obj_set_style_text_color(label_ep_date, lv_color_hex(0x22c55e), 0);  // Vert M'SunPV
+  
+  if (label_ep_prod_jour_title) lv_label_set_text(label_ep_prod_jour_title, "ROUTAGE");
+  if (label_ep_prod_jour_unit) lv_label_set_text(label_ep_prod_jour_unit, "%");
+  
+  sprintf(buffer, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
+  lv_label_set_text(label_ep_time, buffer);
+  
+  // Carte gauche: Prod PV (W), Conso maison (W)
+  sprintf(buffer, "%.0f", msunpv_powPV);
+  lv_label_set_text(label_ep_prod, buffer);
+  lv_obj_set_style_text_color(label_ep_prod, lv_color_hex(COLOR_PROD), 0);
+  
+  sprintf(buffer, "%.0f", msunpv_powReso);
+  lv_label_set_text(label_ep_conso, buffer);
+  lv_obj_set_style_text_color(label_ep_conso, lv_color_hex(COLOR_CONSO), 0);
+  
+  // Carte droite: ROUTAGE (OUTBAL %), CONSO JOUR (kWh)
+  sprintf(buffer, "%d", msunpv_outBal);
+  lv_label_set_text(label_ep_prod_jour, buffer);
+  lv_obj_set_style_text_color(label_ep_prod_jour, lv_color_hex(COLOR_PROD), 0);
+  
+  sprintf(buffer, "%.1f", msunpv_enConso / 1000.0f);
+  lv_label_set_text(label_ep_conso_jour, buffer);
+  
+  // Zone flux: gauche = Prod PV (W), droite = Conso maison (W)
+  if (zone_flow_left_ep && img_arrow_pv_house_ep && img_arrow_house_grid_ep && label_flow_pv_val_ep && label_flow_grid_val_ep && img_flow_reseau_ep) {
+    float prod_w = msunpv_powPV;
+    float conso_w = msunpv_powReso;
+    bool pv_arrow_visible = (prod_w > (float)FLOW_THRESHOLD_PV_W);
+    
+    sprintf(buffer, "%d W", (int)(prod_w + 0.5f));
+    if (pv_arrow_visible) {
+      lv_img_set_src(img_arrow_pv_house_ep, &icoflechedroiteverte);
+      lv_obj_remove_flag(img_arrow_pv_house_ep, LV_OBJ_FLAG_HIDDEN);
+      lv_label_set_text(label_flow_pv_val_ep, buffer);
+      lv_obj_remove_flag(label_flow_pv_val_ep, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(img_arrow_pv_house_ep, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(label_flow_pv_val_ep, LV_OBJ_FLAG_HIDDEN);
+    }
+    
+    // Flèche Maison ↔ Réseau : Import = réseau → maison (flèche gauche orange), Export = maison → réseau (flèche droite verte)
+    lv_img_set_src(img_flow_reseau_ep, &reseau_electrique);
+    #define FLOW_MSUNPV_THRESHOLD_W 5.f
+    if (conso_w > prod_w + FLOW_MSUNPV_THRESHOLD_W) {
+      // Import : flux du réseau vers la maison → flèche gauche (orange)
+      lv_img_set_src(img_arrow_house_grid_ep, &icoflechegaucheorange);
+      lv_obj_remove_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_remove_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
+      sprintf(buffer, "%d W", (int)(conso_w - prod_w + 0.5f));
+      lv_label_set_text(label_flow_grid_val_ep, buffer);
+    } else if (conso_w < prod_w - FLOW_MSUNPV_THRESHOLD_W) {
+      // Export : flux de la maison vers le réseau → flèche droite (verte)
+      lv_img_set_src(img_arrow_house_grid_ep, &icoflechedroiteverte);
+      lv_obj_remove_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_remove_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
+      sprintf(buffer, "%d W", (int)(prod_w - conso_w + 0.5f));
+      lv_label_set_text(label_flow_grid_val_ep, buffer);
+    } else {
+      // Auto : conso ≈ prod, pas de flux net
+      lv_obj_add_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+  
+  // Badge: Conso maison vs Prod PV → Import / Auto / Export
+  if (obj_flow_state_ep && label_flow_state_ep) {
+    float prod_w = msunpv_powPV;
+    float conso_w = msunpv_powReso;
+    #define FLOW_STATE_THRESHOLD_W 5.f
+    if (conso_w > prod_w + FLOW_STATE_THRESHOLD_W) {
+      lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0xd97706), 0);
+      lv_label_set_text(label_flow_state_ep, "Import");
+    } else if (conso_w < prod_w - FLOW_STATE_THRESHOLD_W) {
+      lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0x0d9488), 0);
+      lv_label_set_text(label_flow_state_ep, "Export");
+    } else {
+      lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0x16a34a), 0);
+      lv_label_set_text(label_flow_state_ep, "Auto");
+    }
+  }
+  
+  // Footer météo (identique Enphase)
+  lv_label_set_text(label_ep_weather_city, weather_city.c_str());
+  lv_img_set_src(img_ep_weather_icon, weather_getIconFromCode(weather_code));
+  sprintf(buffer, "%.0f°C", weather_temp);
+  lv_label_set_text(label_ep_weather_temp, buffer);
+  
+  const char* daysShort3[] = {"Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"};
+  struct tm midnight = *timeinfo;
+  midnight.tm_hour = 0;
+  midnight.tm_min = 0;
+  midnight.tm_sec = 0;
+  time_t midnight_ts = mktime(&midnight);
+  for (int i = 0; i < 5; i++) {
+    time_t day_ts = midnight_ts + (time_t)(1 + i) * 86400;
+    struct tm *day_tm = localtime(&day_ts);
+    if (day_tm) {
+      lv_label_set_text(label_ep_weather_day[i], daysShort3[day_tm->tm_wday]);
+    } else {
+      lv_label_set_text(label_ep_weather_day[i], "-");
+    }
+    int idx = i + 1;
+    if (idx < 6 && weather_forecast_codes[idx] > 0) {
+      lv_img_set_src(img_ep_weather_icon_day[i], weather_getIconFromCode(weather_forecast_codes[idx]));
+    }
+    if (idx < 6) {
+      sprintf(buffer, "%d°", weather_forecast_temps[idx]);
+      lv_label_set_text(label_ep_weather_temp_day[i], buffer);
+    } else {
+      lv_label_set_text(label_ep_weather_temp_day[i], "--°");
+    }
+  }
+  
+  if (tempo_enabled) {
+    uint32_t colorToday = 0xffffff;
+    if (tempo_today_color == "Bleu") colorToday = 0x3b82f6;
+    else if (tempo_today_color == "Blanc") colorToday = 0x94a3b8;
+    else if (tempo_today_color == "Rouge") colorToday = 0xef4444;
+    lv_obj_set_style_text_color(label_ep_weather_city, lv_color_hex(colorToday), 0);
+    uint32_t colorTomorrow = 0xd1d5db;
+    if (tempo_tomorrow_pending) colorTomorrow = 0x22c55e;
+    else if (tempo_tomorrow_color == "Bleu") colorTomorrow = 0x3b82f6;
+    else if (tempo_tomorrow_color == "Blanc") colorTomorrow = 0x94a3b8;
+    else if (tempo_tomorrow_color == "Rouge") colorTomorrow = 0xef4444;
+    lv_obj_set_style_text_color(label_ep_weather_day[0], lv_color_hex(colorTomorrow), 0);
+  } else {
+    lv_obj_set_style_text_color(label_ep_weather_city, lv_color_hex(0xffffff), 0);
+    lv_obj_set_style_text_color(label_ep_weather_day[0], lv_color_hex(0xd1d5db), 0);
+  }
+  
   extern bool wifiConnected;
   extern bool mqttConnected;
   extern bool shelly1_connected;

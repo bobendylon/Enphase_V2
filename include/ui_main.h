@@ -1055,10 +1055,10 @@ void createEnphaseScreen() {
   lv_obj_add_event_cb(led_ep_settings, settings_open_clicked, LV_EVENT_CLICKED, NULL);
   
   // ============================================
-  // CARTE GAUCHE (allongée - Prod, Conso, Flux énergie)
+  // CARTE GAUCHE (Prod, Conso — base alignée sur CONSO JOUR de la carte droite)
   // ============================================
   int main_y = 60;
-  int main_height = 320;  // Même hauteur que MQTT
+  int main_height = 210;  // Limite = base des kWh CONSO JOUR (142 + 38 + 2*15 pad)
   
   lv_obj_t *card_left = lv_obj_create(screenEnphase);
   lv_obj_set_size(card_left, 225, main_height);
@@ -1119,63 +1119,8 @@ void createEnphaseScreen() {
   lv_obj_set_style_text_font(label_conso_unit, &lv_font_montserrat_20, 0);
   lv_obj_set_pos(label_conso_unit, 165, 118);
   
-  // ZONE FLUX PV → MAISON → RÉSEAU (identique MQTT)
-  zone_flow_left_ep = lv_obj_create(card_left);
-  lv_obj_set_size(zone_flow_left_ep, 195, 80);
-  lv_obj_set_pos(zone_flow_left_ep, 0, 210);
-  lv_obj_set_style_bg_color(zone_flow_left_ep, lv_color_hex(COLOR_CARD), 0);
-  lv_obj_set_style_border_width(zone_flow_left_ep, 0, 0);
-  lv_obj_set_style_pad_all(zone_flow_left_ep, 0, 0);
-  lv_obj_set_scrollbar_mode(zone_flow_left_ep, LV_SCROLLBAR_MODE_OFF);
-  lv_obj_clear_flag(zone_flow_left_ep, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_add_flag(zone_flow_left_ep, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
-  
-  #define FLOW_ZOOM_EP 256
-  #define FLOW_Y_EP -10
-  
-  img_flow_pv_ep = lv_img_create(zone_flow_left_ep);
-  lv_img_set_src(img_flow_pv_ep, &panneaux_solaires);
-  lv_img_set_zoom(img_flow_pv_ep, FLOW_ZOOM_EP);
-  lv_obj_align(img_flow_pv_ep, LV_ALIGN_LEFT_MID, 5, FLOW_Y_EP);
-  
-  img_arrow_pv_house_ep = lv_img_create(zone_flow_left_ep);
-  lv_img_set_src(img_arrow_pv_house_ep, &icoflechedroiteverte);
-  lv_img_set_zoom(img_arrow_pv_house_ep, FLOW_ZOOM_EP);
-  lv_obj_align(img_arrow_pv_house_ep, LV_ALIGN_LEFT_MID, 46, FLOW_Y_EP);
-  lv_obj_add_flag(img_arrow_pv_house_ep, LV_OBJ_FLAG_HIDDEN);
-  
-  img_flow_maison_ep = lv_img_create(zone_flow_left_ep);
-  lv_img_set_src(img_flow_maison_ep, &maison);
-  lv_img_set_zoom(img_flow_maison_ep, FLOW_ZOOM_EP);
-  lv_obj_align(img_flow_maison_ep, LV_ALIGN_LEFT_MID, 88, FLOW_Y_EP);
-  
-  img_arrow_house_grid_ep = lv_img_create(zone_flow_left_ep);
-  lv_img_set_src(img_arrow_house_grid_ep, &icoflechedroiteverte);
-  lv_img_set_zoom(img_arrow_house_grid_ep, FLOW_ZOOM_EP);
-  lv_obj_align(img_arrow_house_grid_ep, LV_ALIGN_LEFT_MID, 129, FLOW_Y_EP);
-  lv_obj_add_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
-  
-  img_flow_reseau_ep = lv_img_create(zone_flow_left_ep);
-  lv_img_set_src(img_flow_reseau_ep, &reseau_electrique);
-  lv_img_set_zoom(img_flow_reseau_ep, FLOW_ZOOM_EP);
-  lv_obj_align(img_flow_reseau_ep, LV_ALIGN_LEFT_MID, 171, FLOW_Y_EP);
-  
-  label_flow_pv_val_ep = lv_label_create(zone_flow_left_ep);
-  lv_label_set_text(label_flow_pv_val_ep, "0 W");
-  lv_obj_set_style_text_color(label_flow_pv_val_ep, lv_color_hex(COLOR_GRAY), 0);
-  lv_obj_set_style_text_font(label_flow_pv_val_ep, &lv_font_montserrat_16, 0);
-  lv_obj_align_to(label_flow_pv_val_ep, img_arrow_pv_house_ep, LV_ALIGN_OUT_BOTTOM_MID, -10, 2);
-  lv_obj_add_flag(label_flow_pv_val_ep, LV_OBJ_FLAG_HIDDEN);
-  
-  label_flow_grid_val_ep = lv_label_create(zone_flow_left_ep);
-  lv_label_set_text(label_flow_grid_val_ep, "0 W");
-  lv_obj_set_style_text_color(label_flow_grid_val_ep, lv_color_hex(COLOR_GRAY), 0);
-  lv_obj_set_style_text_font(label_flow_grid_val_ep, &lv_font_montserrat_16, 0);
-  lv_obj_align_to(label_flow_grid_val_ep, img_arrow_house_grid_ep, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
-  lv_obj_add_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
-  
   // ============================================
-  // CARTE DROITE (allongée - Prod jour, Conso jour)
+  // CARTE DROITE (Prod jour, Conso jour)
   // ============================================
   lv_obj_t *card_right = lv_obj_create(screenEnphase);
   lv_obj_set_size(card_right, 225, main_height);
@@ -1188,7 +1133,7 @@ void createEnphaseScreen() {
   lv_obj_set_style_pad_all(card_right, 15, 0);
   lv_obj_clear_flag(card_right, LV_OBJ_FLAG_SCROLLABLE);
   
-  // PRODUCTION JOUR (kWh)
+  // PRODUCTION JOUR (kWh) — valeur en 38, unité "kWh" en 20 comme carte gauche (W)
   lv_obj_t *label_prod_jour_title = lv_label_create(card_right);
   lv_label_set_text(label_prod_jour_title, "PRODUCTION JOUR");
   lv_obj_set_style_text_color(label_prod_jour_title, lv_color_hex(0xd1d5db), 0);
@@ -1196,12 +1141,18 @@ void createEnphaseScreen() {
   lv_obj_set_pos(label_prod_jour_title, 0, 8);
   
   label_ep_prod_jour = lv_label_create(card_right);
-  lv_label_set_text(label_ep_prod_jour, "0.0 kWh");
+  lv_label_set_text(label_ep_prod_jour, "0.0");
   lv_obj_set_style_text_color(label_ep_prod_jour, lv_color_hex(COLOR_PROD), 0);
   lv_obj_set_style_text_font(label_ep_prod_jour, &lv_font_montserrat_38, 0);
   lv_obj_set_pos(label_ep_prod_jour, 0, 40);
   
-  // CONSO JOUR (kWh)
+  lv_obj_t *label_prod_jour_unit = lv_label_create(card_right);
+  lv_label_set_text(label_prod_jour_unit, "kWh");
+  lv_obj_set_style_text_color(label_prod_jour_unit, lv_color_hex(COLOR_PROD), 0);
+  lv_obj_set_style_text_font(label_prod_jour_unit, &lv_font_montserrat_20, 0);
+  lv_obj_set_pos(label_prod_jour_unit, 75, 52);
+  
+  // CONSO JOUR (kWh) — idem
   lv_obj_t *label_conso_jour_title = lv_label_create(card_right);
   lv_label_set_text(label_conso_jour_title, "CONSO JOUR");
   lv_obj_set_style_text_color(label_conso_jour_title, lv_color_hex(0xd1d5db), 0);
@@ -1209,10 +1160,99 @@ void createEnphaseScreen() {
   lv_obj_set_pos(label_conso_jour_title, 0, 110);
   
   label_ep_conso_jour = lv_label_create(card_right);
-  lv_label_set_text(label_ep_conso_jour, "0.0 kWh");
+  lv_label_set_text(label_ep_conso_jour, "0.0");
   lv_obj_set_style_text_color(label_ep_conso_jour, lv_color_hex(COLOR_CONSO), 0);
   lv_obj_set_style_text_font(label_ep_conso_jour, &lv_font_montserrat_38, 0);
   lv_obj_set_pos(label_ep_conso_jour, 0, 142);
+  
+  lv_obj_t *label_conso_jour_unit = lv_label_create(card_right);
+  lv_label_set_text(label_conso_jour_unit, "kWh");
+  lv_obj_set_style_text_color(label_conso_jour_unit, lv_color_hex(COLOR_CONSO), 0);
+  lv_obj_set_style_text_font(label_conso_jour_unit, &lv_font_montserrat_20, 0);
+  lv_obj_set_pos(label_conso_jour_unit, 75, 154);
+  
+  // ============================================
+  // CARTE HORIZONTALE (Flux réseau 2/3 + réserve 1/3 droite) — 10 px au-dessus et en dessous
+  // ============================================
+  int gap_flux = 10;
+  int card_horiz_y = main_y + main_height + gap_flux;
+  int card_horiz_h = 390 - card_horiz_y - gap_flux;  // footer_y=390, 10 px sous la carte
+  int card_horiz_w = 460;
+  
+  lv_obj_t *card_horiz = lv_obj_create(screenEnphase);
+  lv_obj_set_size(card_horiz, card_horiz_w, card_horiz_h);
+  lv_obj_set_pos(card_horiz, 10, card_horiz_y);
+  lv_obj_set_style_bg_color(card_horiz, lv_color_hex(COLOR_CARD), 0);
+  lv_obj_set_style_border_width(card_horiz, 1, 0);
+  lv_obj_set_style_border_color(card_horiz, lv_color_hex(0xfbbf24), 0);
+  lv_obj_set_style_border_opa(card_horiz, LV_OPA_40, 0);
+  lv_obj_set_style_radius(card_horiz, 12, 0);
+  lv_obj_set_style_pad_all(card_horiz, 15, 0);
+  lv_obj_clear_flag(card_horiz, LV_OBJ_FLAG_SCROLLABLE);
+  
+  // Zone flux PV → Maison → Réseau (2/3 largeur à gauche)
+  int inner_w = card_horiz_w - 30;  // - 2*15 pad
+  int zone_flow_w = (inner_w * 2) / 3;
+  int zone_flow_h = card_horiz_h - 30;
+  
+  zone_flow_left_ep = lv_obj_create(card_horiz);
+  lv_obj_set_size(zone_flow_left_ep, zone_flow_w, zone_flow_h);
+  lv_obj_set_pos(zone_flow_left_ep, 0, 0);
+  lv_obj_set_style_bg_color(zone_flow_left_ep, lv_color_hex(COLOR_CARD), 0);
+  lv_obj_set_style_border_width(zone_flow_left_ep, 0, 0);
+  lv_obj_set_style_pad_all(zone_flow_left_ep, 0, 0);
+  lv_obj_set_scrollbar_mode(zone_flow_left_ep, LV_SCROLLBAR_MODE_OFF);
+  lv_obj_clear_flag(zone_flow_left_ep, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(zone_flow_left_ep, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+  
+  #define FLOW_ZOOM_EP 333   // 130% (256 = 100%), valeurs en Montserrat 20 (pas 12)
+  #define FLOW_Y_EP -10
+  // Répartition 5 éléments sur zone_flow_w : espacement proportionnel
+  int flow_step = (zone_flow_w - 20) / 5;
+  int flow_x0 = 10;
+  
+  img_flow_pv_ep = lv_img_create(zone_flow_left_ep);
+  lv_img_set_src(img_flow_pv_ep, &panneaux_solaires);
+  lv_img_set_zoom(img_flow_pv_ep, FLOW_ZOOM_EP);
+  lv_obj_align(img_flow_pv_ep, LV_ALIGN_LEFT_MID, flow_x0, FLOW_Y_EP);
+  
+  img_arrow_pv_house_ep = lv_img_create(zone_flow_left_ep);
+  lv_img_set_src(img_arrow_pv_house_ep, &icoflechedroiteverte);
+  lv_img_set_zoom(img_arrow_pv_house_ep, FLOW_ZOOM_EP);
+  lv_obj_align(img_arrow_pv_house_ep, LV_ALIGN_LEFT_MID, flow_x0 + flow_step, FLOW_Y_EP);
+  lv_obj_add_flag(img_arrow_pv_house_ep, LV_OBJ_FLAG_HIDDEN);
+  
+  img_flow_maison_ep = lv_img_create(zone_flow_left_ep);
+  lv_img_set_src(img_flow_maison_ep, &maison);
+  lv_img_set_zoom(img_flow_maison_ep, FLOW_ZOOM_EP);
+  lv_obj_align(img_flow_maison_ep, LV_ALIGN_LEFT_MID, flow_x0 + 2 * flow_step, FLOW_Y_EP);
+  
+  img_arrow_house_grid_ep = lv_img_create(zone_flow_left_ep);
+  lv_img_set_src(img_arrow_house_grid_ep, &icoflechedroiteverte);
+  lv_img_set_zoom(img_arrow_house_grid_ep, FLOW_ZOOM_EP);
+  lv_obj_align(img_arrow_house_grid_ep, LV_ALIGN_LEFT_MID, flow_x0 + 3 * flow_step, FLOW_Y_EP);
+  lv_obj_add_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
+  
+  img_flow_reseau_ep = lv_img_create(zone_flow_left_ep);
+  lv_img_set_src(img_flow_reseau_ep, &reseau_electrique);
+  lv_img_set_zoom(img_flow_reseau_ep, FLOW_ZOOM_EP);
+  lv_obj_align(img_flow_reseau_ep, LV_ALIGN_LEFT_MID, flow_x0 + 4 * flow_step, FLOW_Y_EP);
+  
+  label_flow_pv_val_ep = lv_label_create(zone_flow_left_ep);
+  lv_label_set_text(label_flow_pv_val_ep, "0 W");
+  lv_obj_set_style_text_color(label_flow_pv_val_ep, lv_color_hex(COLOR_GRAY), 0);
+  lv_obj_set_style_text_font(label_flow_pv_val_ep, &lv_font_montserrat_16, 0);  // plus petit que 20
+  lv_obj_align_to(label_flow_pv_val_ep, img_arrow_pv_house_ep, LV_ALIGN_OUT_BOTTOM_MID, -10, 2);
+  lv_obj_add_flag(label_flow_pv_val_ep, LV_OBJ_FLAG_HIDDEN);
+  
+  label_flow_grid_val_ep = lv_label_create(zone_flow_left_ep);
+  lv_label_set_text(label_flow_grid_val_ep, "0 W");
+  lv_obj_set_style_text_color(label_flow_grid_val_ep, lv_color_hex(COLOR_GRAY), 0);
+  lv_obj_set_style_text_font(label_flow_grid_val_ep, &lv_font_montserrat_16, 0);  // plus petit que 20
+  lv_obj_align_to(label_flow_grid_val_ep, img_arrow_house_grid_ep, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
+  lv_obj_add_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
+  
+  // 1/3 droite de la carte horizontale laissé libre pour usage futur
   
   // ============================================
   // FOOTER MÉTÉO (hauteur réduite de moitié, pas de scroll)
@@ -1224,7 +1264,9 @@ void createEnphaseScreen() {
   lv_obj_set_size(footer, 460, footer_h);
   lv_obj_set_pos(footer, 10, footer_y);
   lv_obj_set_style_bg_color(footer, lv_color_hex(COLOR_WEATHER), 0);
-  lv_obj_set_style_border_width(footer, 0, 0);
+  lv_obj_set_style_border_width(footer, 1, 0);  // comme les autres cartes (1 px)
+  lv_obj_set_style_border_color(footer, lv_color_hex(0xfbbf24), 0);
+  lv_obj_set_style_border_opa(footer, LV_OPA_40, 0);
   lv_obj_set_style_radius(footer, 12, 0);
   lv_obj_set_style_pad_all(footer, 10, 0);
   lv_obj_set_scrollbar_mode(footer, LV_SCROLLBAR_MODE_OFF);
@@ -1806,11 +1848,11 @@ void updateEnphaseUI() {
   lv_obj_set_style_text_color(label_ep_conso, lv_color_hex(COLOR_CONSO), 0);
   
   // Production jour (kWh) - enphase_energy_produced en Wh
-  sprintf(buffer, "%.1f kWh", enphase_energy_produced / 1000.0f);
+  sprintf(buffer, "%.1f", enphase_energy_produced / 1000.0f);
   lv_label_set_text(label_ep_prod_jour, buffer);
   
-  // Conso jour (kWh) - enphase_energy_consumed en Wh
-  sprintf(buffer, "%.1f kWh", enphase_energy_consumed / 1000.0f);
+  // Conso jour (kWh) - enphase_energy_consumed en Wh (unité "kWh" dans label séparé)
+  sprintf(buffer, "%.1f", enphase_energy_consumed / 1000.0f);
   lv_label_set_text(label_ep_conso_jour, buffer);
   
   // Zone flux PV → Maison → Réseau (données Enphase)

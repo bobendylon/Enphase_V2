@@ -61,6 +61,10 @@ uint8_t activeScreenType = 0;
 // V14.0 - Format de date (0=complet, 1=abrégé+mois, 2=compact, 3=abrégé+date)
 int dateFormatIndex = 1;  // Par défaut: "Dim. 28 Déc. 2025"
 
+// Luminosité écran (0-255), réglable depuis page Info
+uint8_t brightnessDay = BACKLIGHT_DAY;
+uint8_t brightnessNight = BACKLIGHT_NIGHT;
+
 // SYSTÈME DE LOGS WEB - V12.1
 #define MAX_LOGS 100
 String systemLogs[MAX_LOGS];
@@ -204,6 +208,8 @@ void handleScreensWeb();
 void handleSaveScreens();
 // V14.0 - Format de date
 void handleSaveDateFormat();
+// Luminosité écran (page Info)
+void handleSaveBrightness();
 void applyNightMode();
 // saveHistoData() est maintenant dans module_stats (stats_update)
 // V3.2 - Preferences et pages web
@@ -583,6 +589,7 @@ void setup() {
   server.on("/saveScreens", HTTP_POST, handleSaveScreens);
   // V14.0 - Format de date
   server.on("/saveDateFormat", HTTP_POST, handleSaveDateFormat);
+  server.on("/saveBrightness", HTTP_POST, handleSaveBrightness);
   // V12.5 - Alarme
   server.on("/alarm/set", handleAlarmSet);
   // V3.2 - Nouvelles routes configuration
@@ -666,8 +673,8 @@ void setup() {
   }
   
   // 💡 Allumer backlight progressivement (soft start ~500ms)
-  for (int brightness = 0; brightness <= BACKLIGHT_DAY; brightness += 5) {
-    analogWrite(GFX_BL, brightness);
+  for (int b = 0; b <= (int)brightnessDay; b += 5) {
+    analogWrite(GFX_BL, b);
     delay(10);
   }
   
@@ -678,8 +685,8 @@ void setup() {
   }
 
   // 💡 Allumer backlight progressivement (soft start)
-  for (int brightness = 0; brightness <= BACKLIGHT_DAY; brightness += 5) {
-    analogWrite(GFX_BL, brightness);
+  for (int b = 0; b <= (int)brightnessDay; b += 5) {
+    analogWrite(GFX_BL, b);
     delay(10);
   }
 
@@ -1989,7 +1996,7 @@ void applyNightMode() {
   // Mode nuit : 22h → 6h
   bool isNight = (hour >= NIGHT_START_HOUR || hour < NIGHT_END_HOUR);
   
-  int brightness = isNight ? BACKLIGHT_NIGHT : BACKLIGHT_DAY;
+  int brightness = isNight ? (int)brightnessNight : (int)brightnessDay;
   analogWrite(GFX_BL, brightness);
 }
 
@@ -2056,6 +2063,15 @@ void handleInfoWeb() {
   html += "<p><span class='label'>Rotation:</span> <span class='value' style='color:" + String(screenFlipped ? "#22c55e" : "#9ca3af") + "'>" + String(screenFlipped ? "180° (Retourné)" : "0° (Normal)") + "</span></p>";
   html += "<p style='margin-top:15px'><button onclick='toggleScreenFlip()' class='btn' style='display:inline-block;cursor:pointer;border:none;background:" + String(screenFlipped ? "#ef4444" : "#22c55e") + "'>" + String(screenFlipped ? "↩️ Remettre Normal" : "🔄 Retourner 180°") + "</button></p>";
   html += "<p style='color:#6b7280;margin-top:10px;font-size:0.9em'>L'écran sera retourné immédiatement après sauvegarde</p></div>";
+  
+  // Luminosité écran (jour / nuit, 0–255)
+  html += "<div class='card'><h2>💡 Luminosité écran</h2>";
+  html += "<p><span class='label'>Jour (6h–22h):</span> <span id='valDay' class='value'>" + String((int)brightnessDay) + "</span></p>";
+  html += "<input type='range' id='brightnessDay' min='0' max='255' value='" + String((int)brightnessDay) + "' style='width:100%;margin:8px 0' oninput=\"document.getElementById('valDay').textContent=this.value\">";
+  html += "<p><span class='label'>Nuit (22h–6h):</span> <span id='valNight' class='value'>" + String((int)brightnessNight) + "</span></p>";
+  html += "<input type='range' id='brightnessNight' min='0' max='255' value='" + String((int)brightnessNight) + "' style='width:100%;margin:8px 0' oninput=\"document.getElementById('valNight').textContent=this.value\">";
+  html += "<p style='margin-top:15px'><button type='button' onclick='saveBrightness()' class='btn' style='display:inline-block;cursor:pointer;border:none;background:#22c55e'>💾 Sauvegarder la luminosité</button></p>";
+  html += "<p style='color:#6b7280;font-size:0.9em'>Appliqué immédiatement après sauvegarde. Mode nuit automatique 22h–6h.</p></div>";
   
   // V14.0 - Format de date
   html += "<div class='card'><h2>📅 Format Date</h2>";
@@ -2218,6 +2234,28 @@ function saveDateFormat(value) {
   });
 }
 
+function saveBrightness() {
+  var day = document.getElementById('brightnessDay').value;
+  var night = document.getElementById('brightnessNight').value;
+  fetch('/saveBrightness', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'day=' + day + '&night=' + night
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('Luminosité sauvegardée.');
+    } else {
+      alert('Erreur: ' + (data.error || 'Unknown'));
+    }
+  })
+  .catch(error => {
+    console.error('Erreur:', error);
+    alert('Erreur de connexion');
+  });
+}
+
 </script>)";
   
   html += "</body></html>";
@@ -2272,6 +2310,8 @@ void handleExportConfig() {
   doc[PREF_SCREEN_FLIPPED] = screenFlipped;
   doc[PREF_ACTIVE_SCREEN] = activeScreenType;
   doc[PREF_DATE_FORMAT] = dateFormatIndex;
+  doc[PREF_BRIGHTNESS_DAY] = (int)brightnessDay;
+  doc[PREF_BRIGHTNESS_NIGHT] = (int)brightnessNight;
   String out;
   serializeJson(doc, out);
   server.sendHeader("Content-Disposition", "attachment; filename=\"msunpv_config.json\"");
@@ -2308,6 +2348,9 @@ void handleImportConfig() {
       else if (v.is<long>()) { uint8_t n = (uint8_t)v.as<long>(); if (n <= 1) preferences.putUChar(k, n); }
     } else if (strcmp(k, PREF_SCREEN_FLIPPED) == 0) {
       if (v.is<bool>()) preferences.putBool(k, v.as<bool>());
+    } else if (strcmp(k, PREF_BRIGHTNESS_DAY) == 0 || strcmp(k, PREF_BRIGHTNESS_NIGHT) == 0) {
+      if (v.is<int>()) { int n = v.as<int>(); if (n >= 0 && n <= 255) preferences.putUChar(k, (uint8_t)n); }
+      else if (v.is<long>()) { long n = v.as<long>(); if (n >= 0 && n <= 255) preferences.putUChar(k, (uint8_t)n); }
     } else {
       if (v.is<const char*>() || v.is<String>()) preferences.putString(k, v.as<const char*>());
     }
@@ -2615,6 +2658,26 @@ void handleSaveDateFormat() {
   }
 }
 
+// Luminosité écran (page Info)
+void handleSaveBrightness() {
+  if (server.hasArg("day") && server.hasArg("night")) {
+    int day = server.arg("day").toInt();
+    int night = server.arg("night").toInt();
+    if (day >= 0 && day <= 255 && night >= 0 && night <= 255) {
+      brightnessDay = (uint8_t)day;
+      brightnessNight = (uint8_t)night;
+      savePreferences();
+      applyNightMode();  // applique immédiatement
+      server.send(200, "application/json", "{\"success\":true}");
+      Serial.println("[Info] Luminosité: jour=" + String(brightnessDay) + " nuit=" + String(brightnessNight));
+    } else {
+      server.send(400, "application/json", "{\"success\":false,\"error\":\"Valeur 0-255\"}");
+    }
+  } else {
+    server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing day/night\"}");
+  }
+}
+
 void handleSettingsWeb() {
   String html = "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><link rel='icon' type='image/svg+xml' href='/favicon.ico'><title>Paramètres - MSunPV V3.1</title>";
   html += "<style>body{background:#0c0a09;color:#fff;font-family:Arial;padding:20px;margin:0}";
@@ -2635,7 +2698,7 @@ void handleSettingsWeb() {
   html += "<p style='color:#6b7280;margin-top:15px'>Le redémarrage prend environ 10 secondes</p></div>";
   
   html += "<div class='card'><h2>ℹ️ Information</h2>";
-  html += "<p style='color:#d1d5db'>Les paramètres avancés (luminosité, seuils, IP M'SunPV) nécessitent une modification du firmware dans config.h</p></div>";
+  html += "<p style='color:#d1d5db'>La luminosité de l'écran se règle depuis la page <a href='/info' style='color:#fbbf24'>Info</a>. Les autres paramètres avancés (seuils, IP M'SunPV) peuvent nécessiter config.h</p></div>";
   
   html += "</body></html>";
   server.send(200, "text/html", html);
@@ -2776,6 +2839,10 @@ void loadPreferences() {
   // V14.0 - Format de date
   dateFormatIndex = preferences.getInt(PREF_DATE_FORMAT, 1);  // Défaut: format abrégé
   
+  // Luminosité écran (réglable depuis page Info)
+  brightnessDay = preferences.getUChar(PREF_BRIGHTNESS_DAY, BACKLIGHT_DAY);
+  brightnessNight = preferences.getUChar(PREF_BRIGHTNESS_NIGHT, BACKLIGHT_NIGHT);
+  
   preferences.end();
   
   Serial.println("Config NVS OK");
@@ -2811,6 +2878,10 @@ void savePreferences() {
   
   // V14.0 - Format de date
   preferences.putInt(PREF_DATE_FORMAT, dateFormatIndex);
+  
+  // Luminosité écran
+  preferences.putUChar(PREF_BRIGHTNESS_DAY, brightnessDay);
+  preferences.putUChar(PREF_BRIGHTNESS_NIGHT, brightnessNight);
   
   preferences.end();
   

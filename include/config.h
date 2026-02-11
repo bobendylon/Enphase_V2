@@ -217,6 +217,10 @@ const int MSUNPV_UPDATE_INTERVAL = 10000;       // 10 secondes
 // Format de date (V14.0)
 #define PREF_DATE_FORMAT "date_format"
 
+// Luminosité écran (réglable depuis page Info)
+#define PREF_BRIGHTNESS_DAY "brightness_day"
+#define PREF_BRIGHTNESS_NIGHT "brightness_night"
+
 // ============================================
 // MODE AP (FALLBACK) - V3.3
 // ============================================

@@ -135,6 +135,8 @@ lv_obj_t *img_arrow_pv_house_ep = NULL;
 lv_obj_t *img_arrow_house_grid_ep = NULL;
 lv_obj_t *label_flow_pv_val_ep = NULL;
 lv_obj_t *label_flow_grid_val_ep = NULL;
+lv_obj_t *obj_flow_state_ep = NULL;   // Badge Import / Auto / Export (tiers droit flux)
+lv_obj_t *label_flow_state_ep = NULL;
 
 // Carte flux PV → Maison → Réseau (en bas de la carte gauche)
 #define FLOW_THRESHOLD_PV_W 100
@@ -1190,6 +1192,7 @@ void createEnphaseScreen() {
   lv_obj_set_style_radius(card_horiz, 12, 0);
   lv_obj_set_style_pad_all(card_horiz, 15, 0);
   lv_obj_clear_flag(card_horiz, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(card_horiz, LV_OBJ_FLAG_OVERFLOW_VISIBLE);  // ombre du badge visible
   
   // Zone flux PV → Maison → Réseau (2/3 largeur à gauche)
   int inner_w = card_horiz_w - 30;  // - 2*15 pad
@@ -1253,7 +1256,27 @@ void createEnphaseScreen() {
   lv_obj_align_to(label_flow_grid_val_ep, img_arrow_house_grid_ep, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
   lv_obj_add_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
   
-  // 1/3 droite de la carte horizontale laissé libre pour usage futur
+  // 1/3 droite : badge état réseau (Import / Auto / Export)
+  int right_zone_x = zone_flow_w + 10;
+  int right_zone_w = inner_w - zone_flow_w - 20;
+  obj_flow_state_ep = lv_obj_create(card_horiz);
+  lv_obj_set_size(obj_flow_state_ep, 120, 44);
+  lv_obj_set_pos(obj_flow_state_ep, right_zone_x + (right_zone_w - 120) / 2, (zone_flow_h - 44) / 2);
+  lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0x16a34a), 0);  // Auto par défaut
+  lv_obj_set_style_radius(obj_flow_state_ep, 22, 0);  // pilule
+  lv_obj_set_style_border_width(obj_flow_state_ep, 0, 0);
+  lv_obj_set_style_pad_all(obj_flow_state_ep, 8, 0);
+  lv_obj_set_style_shadow_width(obj_flow_state_ep, 18, 0);
+  lv_obj_set_style_shadow_ofs_x(obj_flow_state_ep, 0, 0);
+  lv_obj_set_style_shadow_ofs_y(obj_flow_state_ep, 6, 0);
+  lv_obj_set_style_shadow_color(obj_flow_state_ep, lv_color_hex(0x1f2937), 0);
+  lv_obj_set_style_shadow_opa(obj_flow_state_ep, LV_OPA_60, 0);
+  lv_obj_clear_flag(obj_flow_state_ep, LV_OBJ_FLAG_SCROLLABLE);
+  label_flow_state_ep = lv_label_create(obj_flow_state_ep);
+  lv_label_set_text(label_flow_state_ep, "Auto");
+  lv_obj_set_style_text_color(label_flow_state_ep, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_font(label_flow_state_ep, &lv_font_montserrat_16, 0);
+  lv_obj_align(label_flow_state_ep, LV_ALIGN_CENTER, 0, 0);
   
   // ============================================
   // FOOTER MÉTÉO (hauteur réduite de moitié, pas de scroll)
@@ -1875,8 +1898,8 @@ void updateEnphaseUI() {
   sprintf(buffer, "%.1f", enphase_energy_produced / 1000.0f);
   lv_label_set_text(label_ep_prod_jour, buffer);
   
-  // Conso jour (kWh) - enphase_energy_consumed en Wh (unité "kWh" dans label séparé)
-  sprintf(buffer, "%.1f", enphase_energy_consumed / 1000.0f);
+  // Conso jour (kWh) - enphase_energy_imported en Wh (uniquement importé réseau, comme page web Enphase)
+  sprintf(buffer, "%.1f", enphase_energy_imported / 1000.0f);
   lv_label_set_text(label_ep_conso_jour, buffer);
   
   // Zone flux PV → Maison → Réseau (données Enphase)
@@ -1914,6 +1937,22 @@ void updateEnphaseUI() {
       lv_img_set_src(img_flow_reseau_ep, &reseau_electrique);
       lv_obj_add_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
       lv_obj_add_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+  
+  // Badge état réseau (Import / Auto / Export) — tiers droit flux
+  if (obj_flow_state_ep && label_flow_state_ep) {
+    float conso_w = enphase_pact_conso;
+    #define FLOW_STATE_THRESHOLD_W 5.f
+    if (conso_w > FLOW_STATE_THRESHOLD_W) {
+      lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0xd97706), 0);   // Import (ambre)
+      lv_label_set_text(label_flow_state_ep, "Import");
+    } else if (conso_w < -FLOW_STATE_THRESHOLD_W) {
+      lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0x0d9488), 0);   // Export (bleu-vert)
+      lv_label_set_text(label_flow_state_ep, "Export");
+    } else {
+      lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0x16a34a), 0);   // Auto (vert)
+      lv_label_set_text(label_flow_state_ep, "Auto");
     }
   }
   

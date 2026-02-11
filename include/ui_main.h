@@ -8,6 +8,7 @@
 
 #include "weather_icons.h"
 #include "module_weather.h"
+#include "module_enphase.h"
 
 // Icônes header WiFi / MQTT / Shelly / Enphase / Réglages (déclarations extern des .c du projet)
 extern const lv_image_dsc_t wifi_cercle_vert;
@@ -46,6 +47,7 @@ struct WeatherDay {
 
 // Variables externes
 extern lv_obj_t *screenMain;
+extern lv_obj_t *screenEnphase;  // V15.0 - Écran Enphase (layout réduit + footer météo)
 extern float solarProd;
 extern float homeConso;
 extern float routerPower;
@@ -104,6 +106,34 @@ lv_obj_t *weather_forecast_container;
 lv_obj_t *weather_day_label[4];
 lv_obj_t *weather_icon_img[4];
 lv_obj_t *weather_temp_label[4];
+
+// V15.0 - Écran Enphase (labels et icônes)
+lv_obj_t *label_ep_date;
+lv_obj_t *label_ep_time;
+lv_obj_t *label_ep_prod;
+lv_obj_t *label_ep_conso;
+lv_obj_t *label_ep_prod_jour;
+lv_obj_t *label_ep_conso_jour;
+lv_obj_t *led_ep_wifi;
+lv_obj_t *led_ep_mqtt;
+lv_obj_t *led_ep_shelly;
+lv_obj_t *led_ep_enphase;
+lv_obj_t *led_ep_settings;
+lv_obj_t *label_ep_weather_city;
+lv_obj_t *img_ep_weather_icon;
+lv_obj_t *label_ep_weather_temp;
+lv_obj_t *label_ep_weather_day[6];
+lv_obj_t *img_ep_weather_icon_day[6];
+lv_obj_t *label_ep_weather_temp_day[6];
+// Zone flux Enphase (PV → Maison → Réseau)
+lv_obj_t *zone_flow_left_ep = NULL;
+lv_obj_t *img_flow_pv_ep = NULL;
+lv_obj_t *img_flow_maison_ep = NULL;
+lv_obj_t *img_flow_reseau_ep = NULL;
+lv_obj_t *img_arrow_pv_house_ep = NULL;
+lv_obj_t *img_arrow_house_grid_ep = NULL;
+lv_obj_t *label_flow_pv_val_ep = NULL;
+lv_obj_t *label_flow_grid_val_ep = NULL;
 
 // Carte flux PV → Maison → Réseau (en bas de la carte gauche)
 #define FLOW_THRESHOLD_PV_W 100
@@ -963,6 +993,292 @@ void createMainScreen() {
   lv_obj_align(label_temp_salon, LV_ALIGN_RIGHT_MID, 0, 0);
 }
 
+// V15.0 - Écran Enphase (cartes réduites + footer météo 6 jours)
+void createEnphaseScreen() {
+  screenEnphase = lv_obj_create(NULL);
+  lv_obj_set_style_bg_color(screenEnphase, lv_color_hex(COLOR_BG), 0);
+  lv_obj_set_scrollbar_mode(screenEnphase, LV_SCROLLBAR_MODE_OFF);
+  
+  // ============================================
+  // HEADER (identique MQTT - tous les logos)
+  // ============================================
+  lv_obj_t *header = lv_obj_create(screenEnphase);
+  lv_obj_set_size(header, 480, 50);
+  lv_obj_set_pos(header, 0, 0);
+  lv_obj_set_style_bg_color(header, lv_color_hex(COLOR_HEADER), 0);
+  lv_obj_set_style_border_width(header, 0, 0);
+  lv_obj_set_style_radius(header, 0, 0);
+  lv_obj_set_style_pad_all(header, 10, 0);
+  lv_obj_set_scrollbar_mode(header, LV_SCROLLBAR_MODE_OFF);
+  lv_obj_clear_flag(header, LV_OBJ_FLAG_SCROLLABLE);
+  
+  // Date (orange pour Enphase)
+  label_ep_date = lv_label_create(header);
+  lv_label_set_text(label_ep_date, "Jeu. 30/10/25");
+  lv_obj_set_style_text_font(label_ep_date, &lv_font_montserrat_20, 0);
+  lv_obj_set_style_text_color(label_ep_date, lv_color_hex(0xf59e0b), 0);
+  lv_obj_align(label_ep_date, LV_ALIGN_LEFT_MID, 0, 0);
+  
+  // Heure (centrée)
+  label_ep_time = lv_label_create(header);
+  lv_label_set_text(label_ep_time, "23:03");
+  lv_obj_set_style_text_font(label_ep_time, &lv_font_montserrat_20, 0);
+  lv_obj_set_style_text_color(label_ep_time, lv_color_hex(0xffffff), 0);
+  lv_obj_align(label_ep_time, LV_ALIGN_CENTER, 0, 0);
+  
+  // Icônes header (WiFi, MQTT, Shelly, Enphase, Réglages)
+  led_ep_wifi = lv_img_create(header);
+  lv_img_set_src(led_ep_wifi, &wifi_barre_oblique);
+  lv_img_set_zoom(led_ep_wifi, 205);
+  lv_obj_align(led_ep_wifi, LV_ALIGN_RIGHT_MID, -135, 0);
+  
+  led_ep_mqtt = lv_img_create(header);
+  lv_img_set_src(led_ep_mqtt, &mqtt_png_gris);
+  lv_img_set_zoom(led_ep_mqtt, 205);
+  lv_obj_align(led_ep_mqtt, LV_ALIGN_RIGHT_MID, -105, 0);
+  
+  led_ep_shelly = lv_img_create(header);
+  lv_img_set_src(led_ep_shelly, &Shelly32_gris);
+  lv_img_set_zoom(led_ep_shelly, 190);
+  lv_obj_align(led_ep_shelly, LV_ALIGN_RIGHT_MID, -75, 0);
+  
+  led_ep_enphase = lv_img_create(header);
+  lv_img_set_src(led_ep_enphase, &Enphase_logo_gris);
+  lv_img_set_zoom(led_ep_enphase, 190);
+  lv_obj_align(led_ep_enphase, LV_ALIGN_RIGHT_MID, -45, 0);
+  
+  led_ep_settings = lv_img_create(header);
+  lv_img_set_src(led_ep_settings, &roue_dentee);
+  lv_img_set_zoom(led_ep_settings, 205);
+  lv_obj_align(led_ep_settings, LV_ALIGN_RIGHT_MID, -15, 0);
+  lv_obj_add_flag(led_ep_settings, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_event_cb(led_ep_settings, settings_open_clicked, LV_EVENT_CLICKED, NULL);
+  
+  // ============================================
+  // CARTE GAUCHE (allongée - Prod, Conso, Flux énergie)
+  // ============================================
+  int main_y = 60;
+  int main_height = 320;  // Même hauteur que MQTT
+  
+  lv_obj_t *card_left = lv_obj_create(screenEnphase);
+  lv_obj_set_size(card_left, 225, main_height);
+  lv_obj_set_pos(card_left, 10, main_y);
+  lv_obj_set_style_bg_color(card_left, lv_color_hex(COLOR_CARD), 0);
+  lv_obj_set_style_border_width(card_left, 1, 0);
+  lv_obj_set_style_border_color(card_left, lv_color_hex(0xfbbf24), 0);
+  lv_obj_set_style_border_opa(card_left, LV_OPA_40, 0);
+  lv_obj_set_style_radius(card_left, 12, 0);
+  lv_obj_set_style_pad_all(card_left, 15, 0);
+  lv_obj_clear_flag(card_left, LV_OBJ_FLAG_SCROLLABLE);
+  
+  // PRODUCTION SOLAIRE
+  lv_obj_t *label_prod_title = lv_label_create(card_left);
+  lv_label_set_text(label_prod_title, "PRODUCTION SOLAIRE");
+  lv_obj_set_style_text_color(label_prod_title, lv_color_hex(0xd1d5db), 0);
+  lv_obj_set_style_text_font(label_prod_title, &lv_font_montserrat_16, 0);
+  lv_obj_set_pos(label_prod_title, 0, 8);
+  
+  lv_obj_t *img_prod_icon = lv_img_create(card_left);
+  lv_img_set_src(img_prod_icon, &panneaux_solaires);
+  lv_img_set_zoom(img_prod_icon, 300);
+  lv_obj_set_pos(img_prod_icon, 0, 33);
+  
+  label_ep_prod = lv_label_create(card_left);
+  lv_label_set_text(label_ep_prod, "0");
+  lv_obj_set_style_text_color(label_ep_prod, lv_color_hex(COLOR_PROD), 0);
+  lv_obj_set_style_text_font(label_ep_prod, &lv_font_montserrat_38, 0);
+  lv_obj_set_pos(label_ep_prod, 60, 33);
+  
+  lv_obj_t *label_prod_unit = lv_label_create(card_left);
+  lv_label_set_text(label_prod_unit, "W");
+  lv_obj_set_style_text_color(label_prod_unit, lv_color_hex(COLOR_PROD), 0);
+  lv_obj_set_style_text_font(label_prod_unit, &lv_font_montserrat_20, 0);
+  lv_obj_set_pos(label_prod_unit, 165, 46);
+  
+  // CONSO MAISON (live Enphase - peut être négatif)
+  lv_obj_t *label_conso_title = lv_label_create(card_left);
+  lv_label_set_text(label_conso_title, "CONSO MAISON");
+  lv_obj_set_style_text_color(label_conso_title, lv_color_hex(0xd1d5db), 0);
+  lv_obj_set_style_text_font(label_conso_title, &lv_font_montserrat_16, 0);
+  lv_obj_set_pos(label_conso_title, 0, 80);
+  
+  lv_obj_t *img_conso_icon = lv_img_create(card_left);
+  lv_img_set_src(img_conso_icon, &reseau_electrique);
+  lv_img_set_zoom(img_conso_icon, 300);
+  lv_obj_set_pos(img_conso_icon, 0, 105);
+  
+  label_ep_conso = lv_label_create(card_left);
+  lv_label_set_text(label_ep_conso, "0");
+  lv_obj_set_style_text_color(label_ep_conso, lv_color_hex(COLOR_CONSO), 0);
+  lv_obj_set_style_text_font(label_ep_conso, &lv_font_montserrat_38, 0);
+  lv_obj_set_pos(label_ep_conso, 60, 105);
+  
+  lv_obj_t *label_conso_unit = lv_label_create(card_left);
+  lv_label_set_text(label_conso_unit, "W");
+  lv_obj_set_style_text_color(label_conso_unit, lv_color_hex(COLOR_CONSO), 0);
+  lv_obj_set_style_text_font(label_conso_unit, &lv_font_montserrat_20, 0);
+  lv_obj_set_pos(label_conso_unit, 165, 118);
+  
+  // ZONE FLUX PV → MAISON → RÉSEAU (identique MQTT)
+  zone_flow_left_ep = lv_obj_create(card_left);
+  lv_obj_set_size(zone_flow_left_ep, 195, 80);
+  lv_obj_set_pos(zone_flow_left_ep, 0, 210);
+  lv_obj_set_style_bg_color(zone_flow_left_ep, lv_color_hex(COLOR_CARD), 0);
+  lv_obj_set_style_border_width(zone_flow_left_ep, 0, 0);
+  lv_obj_set_style_pad_all(zone_flow_left_ep, 0, 0);
+  lv_obj_set_scrollbar_mode(zone_flow_left_ep, LV_SCROLLBAR_MODE_OFF);
+  lv_obj_clear_flag(zone_flow_left_ep, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(zone_flow_left_ep, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+  
+  #define FLOW_ZOOM_EP 256
+  #define FLOW_Y_EP -10
+  
+  img_flow_pv_ep = lv_img_create(zone_flow_left_ep);
+  lv_img_set_src(img_flow_pv_ep, &panneaux_solaires);
+  lv_img_set_zoom(img_flow_pv_ep, FLOW_ZOOM_EP);
+  lv_obj_align(img_flow_pv_ep, LV_ALIGN_LEFT_MID, 5, FLOW_Y_EP);
+  
+  img_arrow_pv_house_ep = lv_img_create(zone_flow_left_ep);
+  lv_img_set_src(img_arrow_pv_house_ep, &icoflechedroiteverte);
+  lv_img_set_zoom(img_arrow_pv_house_ep, FLOW_ZOOM_EP);
+  lv_obj_align(img_arrow_pv_house_ep, LV_ALIGN_LEFT_MID, 46, FLOW_Y_EP);
+  lv_obj_add_flag(img_arrow_pv_house_ep, LV_OBJ_FLAG_HIDDEN);
+  
+  img_flow_maison_ep = lv_img_create(zone_flow_left_ep);
+  lv_img_set_src(img_flow_maison_ep, &maison);
+  lv_img_set_zoom(img_flow_maison_ep, FLOW_ZOOM_EP);
+  lv_obj_align(img_flow_maison_ep, LV_ALIGN_LEFT_MID, 88, FLOW_Y_EP);
+  
+  img_arrow_house_grid_ep = lv_img_create(zone_flow_left_ep);
+  lv_img_set_src(img_arrow_house_grid_ep, &icoflechedroiteverte);
+  lv_img_set_zoom(img_arrow_house_grid_ep, FLOW_ZOOM_EP);
+  lv_obj_align(img_arrow_house_grid_ep, LV_ALIGN_LEFT_MID, 129, FLOW_Y_EP);
+  lv_obj_add_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
+  
+  img_flow_reseau_ep = lv_img_create(zone_flow_left_ep);
+  lv_img_set_src(img_flow_reseau_ep, &reseau_electrique);
+  lv_img_set_zoom(img_flow_reseau_ep, FLOW_ZOOM_EP);
+  lv_obj_align(img_flow_reseau_ep, LV_ALIGN_LEFT_MID, 171, FLOW_Y_EP);
+  
+  label_flow_pv_val_ep = lv_label_create(zone_flow_left_ep);
+  lv_label_set_text(label_flow_pv_val_ep, "0 W");
+  lv_obj_set_style_text_color(label_flow_pv_val_ep, lv_color_hex(COLOR_GRAY), 0);
+  lv_obj_set_style_text_font(label_flow_pv_val_ep, &lv_font_montserrat_16, 0);
+  lv_obj_align_to(label_flow_pv_val_ep, img_arrow_pv_house_ep, LV_ALIGN_OUT_BOTTOM_MID, -10, 2);
+  lv_obj_add_flag(label_flow_pv_val_ep, LV_OBJ_FLAG_HIDDEN);
+  
+  label_flow_grid_val_ep = lv_label_create(zone_flow_left_ep);
+  lv_label_set_text(label_flow_grid_val_ep, "0 W");
+  lv_obj_set_style_text_color(label_flow_grid_val_ep, lv_color_hex(COLOR_GRAY), 0);
+  lv_obj_set_style_text_font(label_flow_grid_val_ep, &lv_font_montserrat_16, 0);
+  lv_obj_align_to(label_flow_grid_val_ep, img_arrow_house_grid_ep, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
+  lv_obj_add_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
+  
+  // ============================================
+  // CARTE DROITE (allongée - Prod jour, Conso jour)
+  // ============================================
+  lv_obj_t *card_right = lv_obj_create(screenEnphase);
+  lv_obj_set_size(card_right, 225, main_height);
+  lv_obj_set_pos(card_right, 245, main_y);
+  lv_obj_set_style_bg_color(card_right, lv_color_hex(COLOR_CARD), 0);
+  lv_obj_set_style_border_width(card_right, 1, 0);
+  lv_obj_set_style_border_color(card_right, lv_color_hex(0xfbbf24), 0);
+  lv_obj_set_style_border_opa(card_right, LV_OPA_40, 0);
+  lv_obj_set_style_radius(card_right, 12, 0);
+  lv_obj_set_style_pad_all(card_right, 15, 0);
+  lv_obj_clear_flag(card_right, LV_OBJ_FLAG_SCROLLABLE);
+  
+  // PRODUCTION JOUR (kWh)
+  lv_obj_t *label_prod_jour_title = lv_label_create(card_right);
+  lv_label_set_text(label_prod_jour_title, "PRODUCTION JOUR");
+  lv_obj_set_style_text_color(label_prod_jour_title, lv_color_hex(0xd1d5db), 0);
+  lv_obj_set_style_text_font(label_prod_jour_title, &lv_font_montserrat_16, 0);
+  lv_obj_set_pos(label_prod_jour_title, 0, 8);
+  
+  label_ep_prod_jour = lv_label_create(card_right);
+  lv_label_set_text(label_ep_prod_jour, "0.0 kWh");
+  lv_obj_set_style_text_color(label_ep_prod_jour, lv_color_hex(COLOR_PROD), 0);
+  lv_obj_set_style_text_font(label_ep_prod_jour, &lv_font_montserrat_38, 0);
+  lv_obj_set_pos(label_ep_prod_jour, 0, 40);
+  
+  // CONSO JOUR (kWh)
+  lv_obj_t *label_conso_jour_title = lv_label_create(card_right);
+  lv_label_set_text(label_conso_jour_title, "CONSO JOUR");
+  lv_obj_set_style_text_color(label_conso_jour_title, lv_color_hex(0xd1d5db), 0);
+  lv_obj_set_style_text_font(label_conso_jour_title, &lv_font_montserrat_16, 0);
+  lv_obj_set_pos(label_conso_jour_title, 0, 110);
+  
+  label_ep_conso_jour = lv_label_create(card_right);
+  lv_label_set_text(label_ep_conso_jour, "0.0 kWh");
+  lv_obj_set_style_text_color(label_ep_conso_jour, lv_color_hex(COLOR_CONSO), 0);
+  lv_obj_set_style_text_font(label_ep_conso_jour, &lv_font_montserrat_38, 0);
+  lv_obj_set_pos(label_ep_conso_jour, 0, 142);
+  
+  // ============================================
+  // FOOTER MÉTÉO (hauteur réduite de moitié, pas de scroll)
+  // ============================================
+  int footer_y = 390;
+  int footer_h = 90;  // Réduit de moitié (était 190)
+  
+  lv_obj_t *footer = lv_obj_create(screenEnphase);
+  lv_obj_set_size(footer, 460, footer_h);
+  lv_obj_set_pos(footer, 10, footer_y);
+  lv_obj_set_style_bg_color(footer, lv_color_hex(COLOR_WEATHER), 0);
+  lv_obj_set_style_border_width(footer, 0, 0);
+  lv_obj_set_style_radius(footer, 12, 0);
+  lv_obj_set_style_pad_all(footer, 10, 0);
+  lv_obj_set_scrollbar_mode(footer, LV_SCROLLBAR_MODE_OFF);
+  lv_obj_clear_flag(footer, LV_OBJ_FLAG_SCROLLABLE);
+  
+  // Gauche : Ville, icône, température
+  label_ep_weather_city = lv_label_create(footer);
+  lv_label_set_text(label_ep_weather_city, "--");
+  lv_obj_set_style_text_color(label_ep_weather_city, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_font(label_ep_weather_city, &lv_font_montserrat_16, 0);
+  lv_obj_align(label_ep_weather_city, LV_ALIGN_LEFT_MID, 0, -25);
+  
+  img_ep_weather_icon = lv_img_create(footer);
+  lv_img_set_src(img_ep_weather_icon, &icon_sun);
+  lv_img_set_zoom(img_ep_weather_icon, 200);
+  lv_obj_align(img_ep_weather_icon, LV_ALIGN_LEFT_MID, 0, 0);
+  
+  label_ep_weather_temp = lv_label_create(footer);
+  lv_label_set_text(label_ep_weather_temp, "--°C");
+  lv_obj_set_style_text_color(label_ep_weather_temp, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_font(label_ep_weather_temp, &lv_font_montserrat_20, 0);
+  lv_obj_align(label_ep_weather_temp, LV_ALIGN_LEFT_MID, 0, 25);
+  
+  // Droite : 6 jours (même taille icône zoom 200 que gauche, pas de scroll)
+  int col_w = 55;
+  for (int i = 0; i < 6; i++) {
+    lv_obj_t *col = lv_obj_create(footer);
+    lv_obj_set_size(col, col_w, footer_h - 20);
+    lv_obj_set_pos(col, 115 + i * col_w, 0);
+    lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(col, 0, 0);
+    lv_obj_set_style_pad_all(col, 0, 0);
+    lv_obj_set_scrollbar_mode(col, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_clear_flag(col, LV_OBJ_FLAG_SCROLLABLE);
+    
+    label_ep_weather_day[i] = lv_label_create(col);
+    lv_label_set_text(label_ep_weather_day[i], "-");
+    lv_obj_set_style_text_color(label_ep_weather_day[i], lv_color_hex(0xd1d5db), 0);
+    lv_obj_set_style_text_font(label_ep_weather_day[i], &lv_font_montserrat_16, 0);
+    lv_obj_align(label_ep_weather_day[i], LV_ALIGN_TOP_MID, 0, 0);
+    
+    img_ep_weather_icon_day[i] = lv_img_create(col);
+    lv_img_set_src(img_ep_weather_icon_day[i], &icon_na);
+    lv_img_set_zoom(img_ep_weather_icon_day[i], 200);  // Même taille que gauche
+    lv_obj_align(img_ep_weather_icon_day[i], LV_ALIGN_CENTER, 0, -8);
+    
+    label_ep_weather_temp_day[i] = lv_label_create(col);
+    lv_label_set_text(label_ep_weather_temp_day[i], "--°");
+    lv_obj_set_style_text_color(label_ep_weather_temp_day[i], lv_color_hex(0xffffff), 0);
+    lv_obj_set_style_text_font(label_ep_weather_temp_day[i], &lv_font_montserrat_16, 0);
+    lv_obj_align(label_ep_weather_temp_day[i], LV_ALIGN_BOTTOM_MID, 0, -2);
+  }
+}
+
 void createSettingsScreen() {
   screenSettings = lv_obj_create(NULL);
   lv_obj_set_style_bg_color(screenSettings, lv_color_hex(COLOR_BG), 0);
@@ -1459,6 +1775,112 @@ void updateMainUI() {
   } else {
     lv_obj_set_style_text_color(label_msunpv_status, lv_color_hex(0xffffff), 0);
   }
+}
+
+// V15.0 - Mise à jour écran Enphase (données Envoy + météo footer)
+void updateEnphaseUI() {
+  char buffer[64];
+  extern int dateFormatIndex;
+  const char* daysShort[] = {"Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."};
+  const char* months[] = {"Jan.", "Fev.", "Mar.", "Avr.", "Mai", "Juin", "Juil.", "Aout", "Sep.", "Oct.", "Nov.", "Dec."};
+  
+  time_t now = time(NULL);
+  struct tm *timeinfo = localtime(&now);
+  
+  // Date (format abrégé) + Heure
+  sprintf(buffer, "%s %d %s %d", daysShort[timeinfo->tm_wday], timeinfo->tm_mday, months[timeinfo->tm_mon], timeinfo->tm_year + 1900);
+  lv_label_set_text(label_ep_date, buffer);
+  lv_obj_set_style_text_color(label_ep_date, lv_color_hex(0xf59e0b), 0);
+  
+  sprintf(buffer, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
+  lv_label_set_text(label_ep_time, buffer);
+  
+  // Production live (W) - enphase_pact_prod
+  sprintf(buffer, "%.0f", enphase_pact_prod);
+  lv_label_set_text(label_ep_prod, buffer);
+  lv_obj_set_style_text_color(label_ep_prod, lv_color_hex(COLOR_PROD), 0);
+  
+  // Conso maison live (W) - enphase_pact_conso (négatif = export)
+  sprintf(buffer, "%.0f", enphase_pact_conso);
+  lv_label_set_text(label_ep_conso, buffer);
+  lv_obj_set_style_text_color(label_ep_conso, lv_color_hex(COLOR_CONSO), 0);
+  
+  // Production jour (kWh) - enphase_energy_produced en Wh
+  sprintf(buffer, "%.1f kWh", enphase_energy_produced / 1000.0f);
+  lv_label_set_text(label_ep_prod_jour, buffer);
+  
+  // Conso jour (kWh) - enphase_energy_consumed en Wh
+  sprintf(buffer, "%.1f kWh", enphase_energy_consumed / 1000.0f);
+  lv_label_set_text(label_ep_conso_jour, buffer);
+  
+  // Zone flux PV → Maison → Réseau (données Enphase)
+  if (zone_flow_left_ep && img_arrow_pv_house_ep && img_arrow_house_grid_ep && label_flow_pv_val_ep && label_flow_grid_val_ep && img_flow_reseau_ep) {
+    float prod_w = enphase_pact_prod;
+    float conso_w = enphase_pact_conso;
+    bool pv_arrow_visible = (prod_w > (float)FLOW_THRESHOLD_PV_W);
+    
+    sprintf(buffer, "%d W", (int)(prod_w + 0.5f));
+    if (pv_arrow_visible) {
+      lv_img_set_src(img_arrow_pv_house_ep, &icoflechedroiteverte);
+      lv_obj_remove_flag(img_arrow_pv_house_ep, LV_OBJ_FLAG_HIDDEN);
+      lv_label_set_text(label_flow_pv_val_ep, buffer);
+      lv_obj_remove_flag(label_flow_pv_val_ep, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(img_arrow_pv_house_ep, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(label_flow_pv_val_ep, LV_OBJ_FLAG_HIDDEN);
+    }
+    
+    if (conso_w < 0.f) {
+      lv_img_set_src(img_flow_reseau_ep, &reseau_electrique);
+      lv_img_set_src(img_arrow_house_grid_ep, &icoflechedroiteverte);
+      lv_obj_remove_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_remove_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
+      sprintf(buffer, "%d W", (int)(-conso_w + 0.5f));
+      lv_label_set_text(label_flow_grid_val_ep, buffer);
+    } else if (conso_w > 0.f) {
+      lv_img_set_src(img_flow_reseau_ep, &reseau_electrique);
+      lv_img_set_src(img_arrow_house_grid_ep, &icoflechegaucheorange);
+      lv_obj_remove_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_remove_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
+      sprintf(buffer, "%d W", (int)(conso_w + 0.5f));
+      lv_label_set_text(label_flow_grid_val_ep, buffer);
+    } else {
+      lv_img_set_src(img_flow_reseau_ep, &reseau_electrique);
+      lv_obj_add_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
+      lv_obj_add_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
+  
+  // Footer météo - Ville, icône, temp
+  lv_label_set_text(label_ep_weather_city, weather_city.c_str());
+  lv_img_set_src(img_ep_weather_icon, weather_getIconFromCode(weather_code));
+  sprintf(buffer, "%.0f°C", weather_temp);
+  lv_label_set_text(label_ep_weather_temp, buffer);
+  
+  // 6 jours prévision
+  for (int i = 0; i < 6; i++) {
+    char dayStr[2] = {weather_forecast_days[i], '\0'};
+    lv_label_set_text(label_ep_weather_day[i], dayStr);
+    if (weather_forecast_codes[i] > 0) {
+      lv_img_set_src(img_ep_weather_icon_day[i], weather_getIconFromCode(weather_forecast_codes[i]));
+    }
+    sprintf(buffer, "%d°", weather_forecast_temps[i]);
+    lv_label_set_text(label_ep_weather_temp_day[i], buffer);
+  }
+  
+  // LEDs header
+  extern bool wifiConnected;
+  extern bool mqttConnected;
+  extern bool shelly1_connected;
+  extern bool shelly2_connected;
+  extern String config_shelly1_ip;
+  extern String config_shelly2_ip;
+  
+  lv_img_set_src(led_ep_wifi, wifiConnected ? &wifi_cercle_vert : &wifi_barre_oblique);
+  lv_img_set_src(led_ep_mqtt, mqttConnected ? &mqtt_png : &mqtt_png_gris);
+  bool shelly_ok = (config_shelly1_ip.length() == 0 || shelly1_connected) && (config_shelly2_ip.length() == 0 || shelly2_connected);
+  lv_img_set_src(led_ep_shelly, shelly_ok ? &Shelly32 : &Shelly32_gris);
+  lv_img_set_src(led_ep_enphase, enphase_connected ? &Enphase_logo : &Enphase_logo_gris);
 }
 
 #endif

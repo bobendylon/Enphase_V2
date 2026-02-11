@@ -30,10 +30,10 @@ float weather_visibility = 0.0;
 int weather_clouds = 0;
 String weather_icon_code = "";
 
-// Variables exposées - Prévisions 4 jours
-char weather_forecast_days[4] = {'-', '-', '-', '-'};
-int weather_forecast_temps[4] = {0, 0, 0, 0};
-int weather_forecast_codes[4] = {800, 800, 800, 800};
+// Variables exposées - Prévisions 6 jours (V15.0: Enphase footer)
+char weather_forecast_days[6] = {'-', '-', '-', '-', '-', '-'};
+int weather_forecast_temps[6] = {0, 0, 0, 0, 0, 0};
+int weather_forecast_codes[6] = {800, 800, 800, 800, 800, 800};
 
 // Variables exposées - Aujourd'hui Matin / Midi / Soir (remplies par forecast)
 int weather_today_morning_temp = 0;
@@ -4371,7 +4371,7 @@ void weather_fetchForecast() {
         time_t midnightTimestamp = mktime(&midnightToday);
         
         // Parcourir les prévisions pour trouver une par jour (lendemain + 3 jours suivants)
-        for(int targetDayOffset = 1; targetDayOffset <= 4 && dayIndex < 4; targetDayOffset++) {
+        for(int targetDayOffset = 1; targetDayOffset <= 6 && dayIndex < 6; targetDayOffset++) {
           int bestIndex = -1;
           int bestHourDiff = 24;  // Chercher la plus proche de 12h
           
@@ -4409,7 +4409,7 @@ void weather_fetchForecast() {
       }
       
       // Si pas assez de données, utiliser les 4 premières disponibles du lendemain (fallback)
-      if (dayIndex < 4) {
+      if (dayIndex < 6) {
         time_t now = time(NULL);
         if (now >= 946684800) {
           struct tm *nowInfo = localtime(&now);
@@ -4419,7 +4419,7 @@ void weather_fetchForecast() {
           midnightToday.tm_sec = 0;
           time_t midnightTimestamp = mktime(&midnightToday);
           
-          for(int i = 0; i < doc["list"].size() && dayIndex < 4; i++) {
+          for(int i = 0; i < doc["list"].size() && dayIndex < 6; i++) {
             long dt = doc["list"][i]["dt"];
             time_t forecastTime = (time_t)dt;
             
@@ -4437,7 +4437,7 @@ void weather_fetchForecast() {
       }
       
       updateWeatherForecastDisplay();
-      addLog("[Météo] Forecast 4 jours mis à jour");
+      addLog("[Météo] Forecast 6 jours mis à jour");
     } else {
       addLog("[Météo] Erreur parsing JSON forecast");
     }

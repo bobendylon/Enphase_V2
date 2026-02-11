@@ -160,6 +160,7 @@ uint32_t bufSize;
 
 // Objets UI (déclarés dans les fichiers .h)
 lv_obj_t *screenMain;
+lv_obj_t *screenEnphase = NULL;  // V15.0 - Écran Enphase
 lv_obj_t *screenStats;
 lv_obj_t *screenInfo;
 lv_obj_t *screenSettings;
@@ -176,6 +177,7 @@ void setupWiFi();
 // Fonctions MQTT sont maintenant dans module_mqtt
 void updateUI();
 void createMainScreen();
+void createEnphaseScreen();  // V15.0
 void createStatsScreen();
 void createInfoScreen();
 void createSettingsScreen();
@@ -653,8 +655,9 @@ void setup() {
   
   // Création UI
   createMainScreen();
+  createEnphaseScreen();  // V15.0 - Écran Enphase
   createSettingsScreen();
-  lv_screen_load(screenMain);
+  lv_screen_load(activeScreenType == 1 ? screenEnphase : screenMain);
   
   // ✅ Forcer 3 rafraîchissements AVANT d'allumer (LVGL prêt)
   for (int i = 0; i < 3; i++) {
@@ -830,8 +833,12 @@ void loop() {
 
 // MISE À JOUR UI
 void updateUI() {
-  if (currentPage == 0 && screenMain) {
-    updateMainUI();
+  if (currentPage == 0) {
+    if (activeScreenType == 1 && screenEnphase) {
+      updateEnphaseUI();
+    } else if (screenMain) {
+      updateMainUI();
+    }
   } else if (currentPage == 3 && screenSettings) {
     updateSettingsUI();
   }
@@ -2398,9 +2405,11 @@ void handleSaveScreens() {
     if (n <= 1) {
       activeScreenType = n;
       savePreferences();
-      if (screenMain) {
-        lv_obj_invalidate(screenMain);
+      if (currentPage == 0) {
+        lv_screen_load(n == 1 ? screenEnphase : screenMain);
       }
+      if (screenMain) lv_obj_invalidate(screenMain);
+      if (screenEnphase) lv_obj_invalidate(screenEnphase);
       lv_refr_now(disp);
       server.send(200, "application/json", "{\"success\":true,\"screen\":" + String(n) + "}");
       Serial.println("[V15.0] Écran: " + String(n ? "Enphase" : "MQTT"));
@@ -2415,7 +2424,7 @@ void handleSaveScreens() {
 // Page Réglages (écran LVGL, roue dentée)
 void settings_back_to_main(void) {
   currentPage = 0;
-  lv_screen_load(screenMain);
+  lv_screen_load(activeScreenType == 1 ? screenEnphase : screenMain);
 }
 
 void settings_do_restart(void) {

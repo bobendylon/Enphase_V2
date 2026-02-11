@@ -29,10 +29,10 @@ extern float weather_visibility;
 extern int weather_clouds;
 extern String weather_icon_code;
 
-// Variables exposées - Prévisions 4 jours
-extern char weather_forecast_days[4];
-extern int weather_forecast_temps[4];
-extern int weather_forecast_codes[4];
+// Variables exposées - Prévisions 6 jours (V15.0: Enphase footer)
+extern char weather_forecast_days[6];
+extern int weather_forecast_temps[6];
+extern int weather_forecast_codes[6];
 
 // Variables exposées - Aujourd'hui par créneau (Matin / Midi / Soir)
 extern int weather_today_morning_temp;

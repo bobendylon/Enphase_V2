@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 static String getSVGIcon(int code) {
   // PNG Base64 data for weather icons
 

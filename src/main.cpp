@@ -1,5 +1,6 @@
 // MSunPV Monitor V12.0 - ESP32-S3 480x480 RGB Display
 
+#include <Arduino.h>
 #include <Arduino_GFX_Library.h>
 #include <lvgl.h>
 #include <WiFi.h>

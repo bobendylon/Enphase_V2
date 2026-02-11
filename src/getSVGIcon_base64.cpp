@@ -1,6 +1,8 @@
 // Fonction getSVGIcon() - Icons PNG en BASE64
 // Genere automatiquement - Ne pas editer manuellement
 
+#include <Arduino.h>
+
 static String getSVGIcon(int code) {
   // Mapping OpenWeatherMap codes vers data URLs base64
 

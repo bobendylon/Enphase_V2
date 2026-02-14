@@ -2185,6 +2185,9 @@ void updateEnphaseUI() {
   bool shelly_ok = (config_shelly1_ip.length() == 0 || shelly1_connected) && (config_shelly2_ip.length() == 0 || shelly2_connected);
   lv_img_set_src(led_ep_shelly, shelly_ok ? &Shelly32 : &Shelly32_gris);
   lv_img_set_src(led_ep_enphase, enphase_connected ? &Enphase_logo : &Enphase_logo_gris);
+  // Mode Enphase : griser MQTT et Shelly (requêtes désactivées)
+  if (led_ep_mqtt) lv_obj_set_style_img_opa(led_ep_mqtt, LV_OPA_40, 0);
+  if (led_ep_shelly) lv_obj_set_style_img_opa(led_ep_shelly, LV_OPA_40, 0);
 }
 
 // M'SunPV - Mise à jour écran (même layout qu'Enphase, date verte, données M'SunPV)
@@ -2365,6 +2368,9 @@ void updateMSunPVUI() {
   bool shelly_ok = (config_shelly1_ip.length() == 0 || shelly1_connected) && (config_shelly2_ip.length() == 0 || shelly2_connected);
   lv_img_set_src(led_ep_shelly, shelly_ok ? &Shelly32 : &Shelly32_gris);
   lv_img_set_src(led_ep_enphase, enphase_connected ? &Enphase_logo : &Enphase_logo_gris);
+  // Mode M'SunPV : opacité normale pour MQTT et Shelly
+  if (led_ep_mqtt) lv_obj_set_style_img_opa(led_ep_mqtt, LV_OPA_COVER, 0);
+  if (led_ep_shelly) lv_obj_set_style_img_opa(led_ep_shelly, LV_OPA_COVER, 0);
 }
 
 #endif

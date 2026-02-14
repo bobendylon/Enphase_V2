@@ -784,11 +784,13 @@ void loop() {
   // Serveur web
   server.handleClient();
   
-  // MQTT (V11.0 - Module)
-  mqtt_loop();
+  // MQTT (V11.0 - Module) — désactivé en mode Enphase (activeScreenType == 1)
+  if (activeScreenType != 1) {
+    mqtt_loop();
+  }
   
-  // MSunPV (V11.0 - Module)
-  if (wifiConnected) {
+  // MSunPV (V11.0 - Module) — désactivé en mode Enphase
+  if (wifiConnected && activeScreenType != 1) {
     msunpv_update();
   }
   
@@ -799,8 +801,8 @@ void loop() {
     weather_fetchForecast();
   }
   
-  // Shelly EM (V11.0 - Module) - Mise à jour toutes les 5 secondes
-  if (wifiConnected) {
+  // Shelly EM (V11.0 - Module) - Mise à jour toutes les 5 secondes — désactivé en mode Enphase
+  if (wifiConnected && activeScreenType != 1) {
     shelly_update();
   }
   

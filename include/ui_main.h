@@ -98,6 +98,7 @@ lv_obj_t *led_settings;
 // Objets M'SunPV (V3.0)
 lv_obj_t *label_msunpv_status;
 lv_obj_t *popup_msunpv;
+static lv_timer_t * msunpv_autoclose_timer = NULL;
 
 // Popup météo (détail jour + phase lune)
 lv_obj_t *popup_weather = NULL;
@@ -188,9 +189,15 @@ extern void settings_do_factory_reset(void);
 extern void settings_get_log_text(char* buf, int maxLen);
 
 static lv_obj_t *label_settings_wifi = NULL;
-static lv_obj_t *label_settings_infos = NULL;
 static lv_obj_t *label_settings_meteo = NULL;
 static lv_obj_t *label_settings_logs = NULL;
+// Onglet Infos : labels séparés pour couleurs (nom + valeur par ligne)
+static lv_obj_t *label_infos_ip_val = NULL;
+static lv_obj_t *label_infos_shelly1_val = NULL;
+static lv_obj_t *label_infos_shelly2_val = NULL;
+static lv_obj_t *label_infos_enphase_val = NULL;
+static lv_obj_t *label_infos_msunpv_val = NULL;
+static lv_obj_t *label_infos_mqtt_val = NULL;
 static lv_obj_t *reset_confirm_popup = NULL;
 
 void settings_open_clicked(lv_event_t * e) {
@@ -313,7 +320,23 @@ void settings_reset_clicked(lv_event_t * e) {
 // ============================================
 // CALLBACKS M'SunPV (V3.0)
 // ============================================
+static void msunpv_autoclose_cb(lv_timer_t * t) {
+  (void)t;
+  if (msunpv_autoclose_timer) {
+    lv_timer_del(msunpv_autoclose_timer);
+    msunpv_autoclose_timer = NULL;
+  }
+  if (popup_msunpv) {
+    lv_obj_del(popup_msunpv);
+    popup_msunpv = NULL;
+  }
+}
+
 void msunpv_close_popup(lv_event_t * e) {
+  if (msunpv_autoclose_timer) {
+    lv_timer_del(msunpv_autoclose_timer);
+    msunpv_autoclose_timer = NULL;
+  }
   if (popup_msunpv) {
     lv_obj_del(popup_msunpv);
     popup_msunpv = NULL;
@@ -325,8 +348,9 @@ void msunpv_cmd_auto(lv_event_t * e) {
   msunpv_status = "AUTO";
   Serial.println("[V3.0] Commande AUTO envoyée");
   
-  // Fermer popup après 500ms
+  // Fermer popup après 500ms et annuler l'autoclose 10s
   lv_timer_create([](lv_timer_t * timer) {
+    if (msunpv_autoclose_timer) { lv_timer_del(msunpv_autoclose_timer); msunpv_autoclose_timer = NULL; }
     if (popup_msunpv) {
       lv_obj_del(popup_msunpv);
       popup_msunpv = NULL;
@@ -340,8 +364,9 @@ void msunpv_cmd_manu(lv_event_t * e) {
   msunpv_status = "MANU";
   Serial.println("[V3.0] Commande MANU envoyée");
   
-  // Fermer popup après 500ms
+  // Fermer popup après 500ms et annuler l'autoclose 10s
   lv_timer_create([](lv_timer_t * timer) {
+    if (msunpv_autoclose_timer) { lv_timer_del(msunpv_autoclose_timer); msunpv_autoclose_timer = NULL; }
     if (popup_msunpv) {
       lv_obj_del(popup_msunpv);
       popup_msunpv = NULL;
@@ -355,8 +380,9 @@ void msunpv_cmd_off(lv_event_t * e) {
   msunpv_status = "OFF";
   Serial.println("[V3.0] Commande OFF envoyée");
   
-  // Fermer popup après 500ms
+  // Fermer popup après 500ms et annuler l'autoclose 10s
   lv_timer_create([](lv_timer_t * timer) {
+    if (msunpv_autoclose_timer) { lv_timer_del(msunpv_autoclose_timer); msunpv_autoclose_timer = NULL; }
     if (popup_msunpv) {
       lv_obj_del(popup_msunpv);
       popup_msunpv = NULL;
@@ -455,6 +481,9 @@ void msunpv_open_popup(lv_event_t * e) {
   lv_label_set_text(label_close, "Fermer");
   lv_obj_set_style_text_font(label_close, &lv_font_montserrat_16, 0);
   lv_obj_center(label_close);
+
+  msunpv_autoclose_timer = lv_timer_create(msunpv_autoclose_cb, 10000, NULL);
+  lv_timer_set_repeat_count(msunpv_autoclose_timer, 1);
 }
 
 static void weather_autoclose_cb(lv_timer_t * t) {
@@ -1308,8 +1337,8 @@ void createEnphaseScreen() {
   
   img_ep_weather_icon = lv_img_create(footer);
   lv_img_set_src(img_ep_weather_icon, &icon_sun);
-  lv_img_set_zoom(img_ep_weather_icon, 333);  // 130%
-  lv_obj_align(img_ep_weather_icon, LV_ALIGN_LEFT_MID, 48, 11);  // +10 px droite, +5 px bas
+  lv_img_set_zoom(img_ep_weather_icon, 358);  // 140% (256 = 100%)
+  lv_obj_align(img_ep_weather_icon, LV_ALIGN_LEFT_MID, 48, 15);  // 15 px sous le centre
   
   label_ep_weather_temp = lv_label_create(footer);
   lv_label_set_text(label_ep_weather_temp, "--°C");
@@ -1358,7 +1387,14 @@ void createSettingsScreen() {
   lv_obj_set_size(tv, 480, 430);
   lv_obj_align(tv, LV_ALIGN_TOP_MID, 0, 0);
   lv_obj_set_style_bg_color(tv, lv_color_hex(COLOR_BG), 0);
-  lv_tabview_set_tab_bar_size(tv, 48);
+  lv_obj_set_style_bg_color(lv_tabview_get_content(tv), lv_color_hex(COLOR_BG), 0);
+  lv_tabview_set_tab_bar_size(tv, 44);
+  lv_obj_t *tab_bar = lv_tabview_get_tab_bar(tv);
+  if (tab_bar) {
+    lv_obj_set_style_bg_color(tab_bar, lv_color_hex(COLOR_HEADER), 0);
+    lv_obj_set_style_text_color(tab_bar, lv_color_hex(0xd1d5db), 0);
+    lv_obj_set_style_text_color(tab_bar, lv_color_hex(0xfbbf24), LV_PART_ITEMS | LV_STATE_CHECKED);
+  }
   lv_obj_t *tab_wifi = lv_tabview_add_tab(tv, "WiFi");
   lv_obj_t *tab_infos = lv_tabview_add_tab(tv, "Infos");
   lv_obj_t *tab_meteo = lv_tabview_add_tab(tv, "Meteo");
@@ -1371,18 +1407,29 @@ void createSettingsScreen() {
   lv_obj_set_style_pad_all(tab_wifi, 10, 0);
   lv_obj_set_scrollbar_mode(tab_wifi, LV_SCROLLBAR_MODE_ON);
   
-  // État actuel (labels)
-  label_settings_wifi = lv_label_create(tab_wifi);
+  // Carte statut WiFi (Etat, Signal, IP) — design amélioré
+  lv_obj_t *card_wifi_status = lv_obj_create(tab_wifi);
+  lv_obj_set_size(card_wifi_status, 440, 58);
+  lv_obj_set_pos(card_wifi_status, 0, 0);
+  lv_obj_set_style_bg_color(card_wifi_status, lv_color_hex(COLOR_CARD), 0);
+  lv_obj_set_style_border_width(card_wifi_status, 1, 0);
+  lv_obj_set_style_border_color(card_wifi_status, lv_color_hex(0xfbbf24), 0);
+  lv_obj_set_style_border_opa(card_wifi_status, LV_OPA_30, 0);
+  lv_obj_set_style_radius(card_wifi_status, 10, 0);
+  lv_obj_set_style_pad_all(card_wifi_status, 12, 0);
+  lv_obj_clear_flag(card_wifi_status, LV_OBJ_FLAG_SCROLLABLE);
+  
+  label_settings_wifi = lv_label_create(card_wifi_status);
   lv_label_set_text(label_settings_wifi, "Etat: --\nSignal: --\nIP: --");
   lv_obj_set_style_text_font(label_settings_wifi, &lv_font_montserrat_16, 0);
-  lv_obj_set_style_text_color(label_settings_wifi, lv_color_hex(0xd1d5db), 0);
+  lv_obj_set_style_text_color(label_settings_wifi, lv_color_hex(0xffffff), 0);
   lv_obj_align(label_settings_wifi, LV_ALIGN_TOP_LEFT, 0, 0);
-  lv_obj_set_width(label_settings_wifi, 420);
+  lv_obj_set_width(label_settings_wifi, 400);
   
   // Bouton Scanner
   lv_obj_t *btn_scan = lv_btn_create(tab_wifi);
   lv_obj_set_size(btn_scan, 200, 40);
-  lv_obj_align(btn_scan, LV_ALIGN_TOP_LEFT, 0, 80);
+  lv_obj_align(btn_scan, LV_ALIGN_TOP_LEFT, 0, 70);
   lv_obj_set_style_bg_color(btn_scan, lv_color_hex(0x3b82f6), 0);
   lv_obj_add_event_cb(btn_scan, (lv_event_cb_t)wifi_scan_clicked, LV_EVENT_CLICKED, NULL);
   lv_obj_t *lbl_scan = lv_label_create(btn_scan);
@@ -1395,12 +1442,12 @@ void createSettingsScreen() {
   lv_label_set_text(lbl_scan_status, "Pret");
   lv_obj_set_style_text_font(lbl_scan_status, &lv_font_montserrat_16, 0);
   lv_obj_set_style_text_color(lbl_scan_status, lv_color_hex(0x9ca3af), 0);
-  lv_obj_align(lbl_scan_status, LV_ALIGN_TOP_RIGHT, -20, 82);
+  lv_obj_align(lbl_scan_status, LV_ALIGN_TOP_RIGHT, -20, 72);
   
   // Dropdown réseaux
   lv_obj_t *dd_wifi = lv_dropdown_create(tab_wifi);
   lv_obj_set_size(dd_wifi, 400, 40);
-  lv_obj_align(dd_wifi, LV_ALIGN_TOP_LEFT, 0, 135);
+  lv_obj_align(dd_wifi, LV_ALIGN_TOP_LEFT, 0, 122);
   lv_obj_set_style_text_font(lv_dropdown_get_list(dd_wifi), &lv_font_montserrat_16, 0);
   lv_obj_set_style_text_font(dd_wifi, &lv_font_montserrat_16, 0);
   lv_dropdown_set_text(dd_wifi, "Selectionnez un reseau");
@@ -1411,11 +1458,11 @@ void createSettingsScreen() {
   lv_label_set_text(lbl_ssid, "SSID:");
   lv_obj_set_style_text_font(lbl_ssid, &lv_font_montserrat_16, 0);
   lv_obj_set_style_text_color(lbl_ssid, lv_color_hex(0xd1d5db), 0);
-  lv_obj_align(lbl_ssid, LV_ALIGN_TOP_LEFT, 0, 185);
+  lv_obj_align(lbl_ssid, LV_ALIGN_TOP_LEFT, 0, 172);
   
   lv_obj_t *ta_ssid = lv_textarea_create(tab_wifi);
   lv_obj_set_size(ta_ssid, 400, 40);
-  lv_obj_align(ta_ssid, LV_ALIGN_TOP_LEFT, 0, 205);
+  lv_obj_align(ta_ssid, LV_ALIGN_TOP_LEFT, 0, 192);
   lv_textarea_set_placeholder_text(ta_ssid, "Saisir ou selectionner");
   lv_obj_set_style_text_font(ta_ssid, &lv_font_montserrat_16, 0);
   lv_textarea_set_max_length(ta_ssid, 32);
@@ -1425,11 +1472,11 @@ void createSettingsScreen() {
   lv_label_set_text(lbl_pwd, "Mot de passe:");
   lv_obj_set_style_text_font(lbl_pwd, &lv_font_montserrat_16, 0);
   lv_obj_set_style_text_color(lbl_pwd, lv_color_hex(0xd1d5db), 0);
-  lv_obj_align(lbl_pwd, LV_ALIGN_TOP_LEFT, 0, 255);
+  lv_obj_align(lbl_pwd, LV_ALIGN_TOP_LEFT, 0, 242);
   
   lv_obj_t *ta_pwd = lv_textarea_create(tab_wifi);
   lv_obj_set_size(ta_pwd, 400, 40);
-  lv_obj_align(ta_pwd, LV_ALIGN_TOP_LEFT, 0, 275);
+  lv_obj_align(ta_pwd, LV_ALIGN_TOP_LEFT, 0, 262);
   lv_textarea_set_placeholder_text(ta_pwd, "(optionnel)");
   lv_obj_set_style_text_font(ta_pwd, &lv_font_montserrat_16, 0);
   lv_textarea_set_max_length(ta_pwd, 64);
@@ -1437,7 +1484,7 @@ void createSettingsScreen() {
   // Bouton Connexion
   lv_obj_t *btn_connect = lv_btn_create(tab_wifi);
   lv_obj_set_size(btn_connect, 190, 44);
-  lv_obj_align(btn_connect, LV_ALIGN_TOP_LEFT, 0, 330);
+  lv_obj_align(btn_connect, LV_ALIGN_TOP_LEFT, 0, 317);
   lv_obj_set_style_bg_color(btn_connect, lv_color_hex(0x22c55e), 0);
   lv_obj_add_event_cb(btn_connect, (lv_event_cb_t)wifi_connect_clicked, LV_EVENT_CLICKED, NULL);
   lv_obj_t *lbl_connect = lv_label_create(btn_connect);
@@ -1448,7 +1495,7 @@ void createSettingsScreen() {
   // Bouton Effacer
   lv_obj_t *btn_clear = lv_btn_create(tab_wifi);
   lv_obj_set_size(btn_clear, 190, 44);
-  lv_obj_align(btn_clear, LV_ALIGN_TOP_RIGHT, -10, 330);
+  lv_obj_align(btn_clear, LV_ALIGN_TOP_RIGHT, -10, 317);
   lv_obj_set_style_bg_color(btn_clear, lv_color_hex(0x374151), 0);
   lv_obj_add_event_cb(btn_clear, (lv_event_cb_t)wifi_clear_clicked, LV_EVENT_CLICKED, NULL);
   lv_obj_t *lbl_clear = lv_label_create(btn_clear);
@@ -1476,28 +1523,120 @@ void createSettingsScreen() {
   wifi_lbl_status_msg = lbl_msg;
   
   // ============================================
-  // AUTRES ONGLETS
+  // ONGLET INFOS — Appareils (noms colorés)
   // ============================================
   lv_obj_set_style_pad_all(tab_infos, 10, 0);
-  label_settings_infos = lv_label_create(tab_infos);
-  lv_label_set_text(label_settings_infos, "");
-  lv_obj_set_style_text_font(label_settings_infos, &lv_font_montserrat_16, 0);
-  lv_obj_set_style_text_color(label_settings_infos, lv_color_hex(0xd1d5db), 0);
-  lv_obj_align(label_settings_infos, LV_ALIGN_TOP_LEFT, 0, 0);
-  lv_obj_set_width(label_settings_infos, 440);
+  lv_obj_set_scrollbar_mode(tab_infos, LV_SCROLLBAR_MODE_ON);
+  
+  // Carte "Connexions" avec lignes colorées
+  lv_obj_t *card_infos = lv_obj_create(tab_infos);
+  lv_obj_set_size(card_infos, 440, 240);
+  lv_obj_set_pos(card_infos, 0, 0);
+  lv_obj_set_style_bg_color(card_infos, lv_color_hex(COLOR_CARD), 0);
+  lv_obj_set_style_border_width(card_infos, 1, 0);
+  lv_obj_set_style_border_color(card_infos, lv_color_hex(0xfbbf24), 0);
+  lv_obj_set_style_border_opa(card_infos, LV_OPA_30, 0);
+  lv_obj_set_style_radius(card_infos, 10, 0);
+  lv_obj_set_style_pad_all(card_infos, 14, 0);
+  lv_obj_clear_flag(card_infos, LV_OBJ_FLAG_SCROLLABLE);
+  
+  // IP appareil (blanc comme MQTT)
+  lv_obj_t *lbl_ip = lv_label_create(card_infos);
+  lv_label_set_text(lbl_ip, "IP appareil:");
+  lv_obj_set_style_text_color(lbl_ip, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_font(lbl_ip, &lv_font_montserrat_16, 0);
+  lv_obj_set_pos(lbl_ip, 0, 0);
+  label_infos_ip_val = lv_label_create(card_infos);
+  lv_label_set_text(label_infos_ip_val, "--");
+  lv_obj_set_style_text_color(label_infos_ip_val, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_font(label_infos_ip_val, &lv_font_montserrat_16, 0);
+  lv_obj_align(label_infos_ip_val, LV_ALIGN_TOP_RIGHT, 0, 0);
+  
+  // Shelly 1 (bleu)
+  lv_obj_t *lbl_s1 = lv_label_create(card_infos);
+  lv_label_set_text(lbl_s1, "Shelly 1:");
+  lv_obj_set_style_text_color(lbl_s1, lv_color_hex(0x3b82f6), 0);
+  lv_obj_set_style_text_font(lbl_s1, &lv_font_montserrat_16, 0);
+  lv_obj_set_pos(lbl_s1, 0, 38);
+  label_infos_shelly1_val = lv_label_create(card_infos);
+  lv_label_set_text(label_infos_shelly1_val, "--");
+  lv_obj_set_style_text_color(label_infos_shelly1_val, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_font(label_infos_shelly1_val, &lv_font_montserrat_16, 0);
+  lv_obj_align(label_infos_shelly1_val, LV_ALIGN_TOP_RIGHT, 0, 38);
+  
+  // Shelly 2 (bleu)
+  lv_obj_t *lbl_s2 = lv_label_create(card_infos);
+  lv_label_set_text(lbl_s2, "Shelly 2:");
+  lv_obj_set_style_text_color(lbl_s2, lv_color_hex(0x3b82f6), 0);
+  lv_obj_set_style_text_font(lbl_s2, &lv_font_montserrat_16, 0);
+  lv_obj_set_pos(lbl_s2, 0, 76);
+  label_infos_shelly2_val = lv_label_create(card_infos);
+  lv_label_set_text(label_infos_shelly2_val, "--");
+  lv_obj_set_style_text_color(label_infos_shelly2_val, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_font(label_infos_shelly2_val, &lv_font_montserrat_16, 0);
+  lv_obj_align(label_infos_shelly2_val, LV_ALIGN_TOP_RIGHT, 0, 76);
+  
+  // Enphase (orange = 0xf59e0b comme la date Enphase)
+  lv_obj_t *lbl_ep = lv_label_create(card_infos);
+  lv_label_set_text(lbl_ep, "Enphase:");
+  lv_obj_set_style_text_color(lbl_ep, lv_color_hex(0xf59e0b), 0);
+  lv_obj_set_style_text_font(lbl_ep, &lv_font_montserrat_16, 0);
+  lv_obj_set_pos(lbl_ep, 0, 114);
+  label_infos_enphase_val = lv_label_create(card_infos);
+  lv_label_set_text(label_infos_enphase_val, "--");
+  lv_obj_set_style_text_color(label_infos_enphase_val, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_font(label_infos_enphase_val, &lv_font_montserrat_16, 0);
+  lv_obj_align(label_infos_enphase_val, LV_ALIGN_TOP_RIGHT, 0, 114);
+  
+  // M'SunPV (vert)
+  lv_obj_t *lbl_ms = lv_label_create(card_infos);
+  lv_label_set_text(lbl_ms, "M'SunPV:");
+  lv_obj_set_style_text_color(lbl_ms, lv_color_hex(0x22c55e), 0);
+  lv_obj_set_style_text_font(lbl_ms, &lv_font_montserrat_16, 0);
+  lv_obj_set_pos(lbl_ms, 0, 152);
+  label_infos_msunpv_val = lv_label_create(card_infos);
+  lv_label_set_text(label_infos_msunpv_val, "--");
+  lv_obj_set_style_text_color(label_infos_msunpv_val, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_font(label_infos_msunpv_val, &lv_font_montserrat_16, 0);
+  lv_obj_align(label_infos_msunpv_val, LV_ALIGN_TOP_RIGHT, 0, 152);
+  
+  // MQTT (blanc comme IP)
+  lv_obj_t *lbl_mq = lv_label_create(card_infos);
+  lv_label_set_text(lbl_mq, "MQTT:");
+  lv_obj_set_style_text_color(lbl_mq, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_font(lbl_mq, &lv_font_montserrat_16, 0);
+  lv_obj_set_pos(lbl_mq, 0, 190);
+  label_infos_mqtt_val = lv_label_create(card_infos);
+  lv_label_set_text(label_infos_mqtt_val, "--");
+  lv_obj_set_style_text_color(label_infos_mqtt_val, lv_color_hex(0xffffff), 0);
+  lv_obj_set_style_text_font(label_infos_mqtt_val, &lv_font_montserrat_16, 0);
+  lv_obj_align(label_infos_mqtt_val, LV_ALIGN_TOP_RIGHT, 0, 190);
   
   lv_obj_set_style_pad_all(tab_meteo, 10, 0);
-  label_settings_meteo = lv_label_create(tab_meteo);
+  lv_obj_set_scrollbar_mode(tab_meteo, LV_SCROLLBAR_MODE_ON);
+  lv_obj_t *card_meteo = lv_obj_create(tab_meteo);
+  lv_obj_set_size(card_meteo, 440, 100);
+  lv_obj_set_pos(card_meteo, 0, 0);
+  lv_obj_set_style_bg_color(card_meteo, lv_color_hex(COLOR_CARD), 0);
+  lv_obj_set_style_border_width(card_meteo, 1, 0);
+  lv_obj_set_style_border_color(card_meteo, lv_color_hex(0xfbbf24), 0);
+  lv_obj_set_style_border_opa(card_meteo, LV_OPA_30, 0);
+  lv_obj_set_style_radius(card_meteo, 10, 0);
+  lv_obj_set_style_pad_all(card_meteo, 14, 0);
+  lv_obj_clear_flag(card_meteo, LV_OBJ_FLAG_SCROLLABLE);
+  label_settings_meteo = lv_label_create(card_meteo);
   lv_label_set_text(label_settings_meteo, "");
   lv_obj_set_style_text_font(label_settings_meteo, &lv_font_montserrat_16, 0);
-  lv_obj_set_style_text_color(label_settings_meteo, lv_color_hex(0xd1d5db), 0);
+  lv_obj_set_style_text_color(label_settings_meteo, lv_color_hex(0xffffff), 0);
   lv_obj_align(label_settings_meteo, LV_ALIGN_TOP_LEFT, 0, 0);
-  lv_obj_set_width(label_settings_meteo, 440);
+  lv_obj_set_width(label_settings_meteo, 400);
   
+  lv_obj_set_style_pad_all(tab_maint, 12, 0);
   lv_obj_t *btn_restart = lv_btn_create(tab_maint);
-  lv_obj_set_size(btn_restart, 200, 44);
+  lv_obj_set_size(btn_restart, 420, 48);
   lv_obj_align(btn_restart, LV_ALIGN_TOP_LEFT, 0, 0);
   lv_obj_set_style_bg_color(btn_restart, lv_color_hex(0x3b82f6), 0);
+  lv_obj_set_style_radius(btn_restart, 10, 0);
   lv_obj_add_event_cb(btn_restart, settings_restart_clicked, LV_EVENT_CLICKED, NULL);
   lv_obj_t *lr = lv_label_create(btn_restart);
   lv_label_set_text(lr, "Redemarrer");
@@ -1505,9 +1644,10 @@ void createSettingsScreen() {
   lv_obj_center(lr);
   
   lv_obj_t *btn_flip = lv_btn_create(tab_maint);
-  lv_obj_set_size(btn_flip, 200, 44);
-  lv_obj_align(btn_flip, LV_ALIGN_TOP_LEFT, 0, 56);
+  lv_obj_set_size(btn_flip, 420, 48);
+  lv_obj_align(btn_flip, LV_ALIGN_TOP_LEFT, 0, 58);
   lv_obj_set_style_bg_color(btn_flip, lv_color_hex(0x374151), 0);
+  lv_obj_set_style_radius(btn_flip, 10, 0);
   lv_obj_add_event_cb(btn_flip, settings_flip_clicked, LV_EVENT_CLICKED, NULL);
   lv_obj_t *lf = lv_label_create(btn_flip);
   lv_label_set_text(lf, "Retourner ecran");
@@ -1515,9 +1655,10 @@ void createSettingsScreen() {
   lv_obj_center(lf);
   
   lv_obj_t *btn_reset = lv_btn_create(tab_maint);
-  lv_obj_set_size(btn_reset, 200, 44);
-  lv_obj_align(btn_reset, LV_ALIGN_TOP_LEFT, 0, 112);
+  lv_obj_set_size(btn_reset, 420, 48);
+  lv_obj_align(btn_reset, LV_ALIGN_TOP_LEFT, 0, 116);
   lv_obj_set_style_bg_color(btn_reset, lv_color_hex(0xef4444), 0);
+  lv_obj_set_style_radius(btn_reset, 10, 0);
   lv_obj_add_event_cb(btn_reset, settings_reset_clicked, LV_EVENT_CLICKED, NULL);
   lv_obj_t *lres = lv_label_create(btn_reset);
   lv_label_set_text(lres, "Reset (tout effacer)");
@@ -1525,12 +1666,23 @@ void createSettingsScreen() {
   lv_obj_center(lres);
   
   lv_obj_set_style_pad_all(tab_logs, 10, 0);
-  label_settings_logs = lv_label_create(tab_logs);
+  lv_obj_set_scrollbar_mode(tab_logs, LV_SCROLLBAR_MODE_ON);
+  lv_obj_t *card_logs = lv_obj_create(tab_logs);
+  lv_obj_set_size(card_logs, 440, 320);
+  lv_obj_set_pos(card_logs, 0, 0);
+  lv_obj_set_style_bg_color(card_logs, lv_color_hex(COLOR_CARD), 0);
+  lv_obj_set_style_border_width(card_logs, 1, 0);
+  lv_obj_set_style_border_color(card_logs, lv_color_hex(0xfbbf24), 0);
+  lv_obj_set_style_border_opa(card_logs, LV_OPA_30, 0);
+  lv_obj_set_style_radius(card_logs, 10, 0);
+  lv_obj_set_style_pad_all(card_logs, 12, 0);
+  lv_obj_set_scrollbar_mode(card_logs, LV_SCROLLBAR_MODE_AUTO);
+  label_settings_logs = lv_label_create(card_logs);
   lv_label_set_text(label_settings_logs, "");
-  lv_obj_set_style_text_font(label_settings_logs, &lv_font_montserrat_16, 0);
+  lv_obj_set_style_text_font(label_settings_logs, &lv_font_montserrat_14, 0);
   lv_obj_set_style_text_color(label_settings_logs, lv_color_hex(0x9ca3af), 0);
   lv_obj_align(label_settings_logs, LV_ALIGN_TOP_LEFT, 0, 0);
-  lv_obj_set_width(label_settings_logs, 440);
+  lv_obj_set_width(label_settings_logs, 400);
   lv_label_set_long_mode(label_settings_logs, LV_LABEL_LONG_WRAP);
   
   lv_obj_t *btn_back = lv_btn_create(screenSettings);
@@ -1545,7 +1697,7 @@ void createSettingsScreen() {
 }
 
 void updateSettingsUI() {
-  if (!label_settings_wifi || !label_settings_infos || !label_settings_meteo || !label_settings_logs) return;
+  if (!label_settings_wifi || !label_settings_meteo || !label_settings_logs) return;
   extern String ipAddress;
   extern long rssi;
   extern bool wifiAPMode;
@@ -1559,18 +1711,25 @@ void updateSettingsUI() {
   extern String config_msunpv_ip;
   extern String config_mqtt_ip;
   extern int config_mqtt_port;
-  extern bool screenFlipped;
-  char buf[320];
+  char buf[120];
+  
+  // WiFi tab : Etat, Signal, IP (contenu correct, plus d'inscriptions illisibles)
+  const char* etat = wifiAPMode ? "Mode AP" : (WiFi.status() == WL_CONNECTED ? "Connecte" : "Deconnecte");
+  snprintf(buf, sizeof(buf), "Etat: %s\nSignal: %ld dBm\nIP: %s",
+           etat, rssi, ipAddress.length() ? ipAddress.c_str() : "--");
   lv_label_set_text(label_settings_wifi, buf);
-  snprintf(buf, sizeof(buf),
-           "IP appareil: %s\nShelly 1: %s\nShelly 2: %s\nEnphase: %s\nM'SunPV: %s\nMQTT: %s:%d",
-           ipAddress.length() ? ipAddress.c_str() : "--",
-           config_shelly1_ip.length() ? config_shelly1_ip.c_str() : "non configure",
-           config_shelly2_ip.length() ? config_shelly2_ip.c_str() : "non configure",
-           config_enphase_ip.length() ? config_enphase_ip.c_str() : "non configure",
-           config_msunpv_ip.length() ? config_msunpv_ip.c_str() : "non configure",
-           config_mqtt_ip.length() ? config_mqtt_ip.c_str() : "--", config_mqtt_port);
-  lv_label_set_text(label_settings_infos, buf);
+  
+  // Onglet Infos : valeurs par ligne (noms déjà colorés dans createSettingsScreen)
+  if (label_infos_ip_val) lv_label_set_text(label_infos_ip_val, ipAddress.length() ? ipAddress.c_str() : "--");
+  if (label_infos_shelly1_val) lv_label_set_text(label_infos_shelly1_val, config_shelly1_ip.length() ? config_shelly1_ip.c_str() : "non configure");
+  if (label_infos_shelly2_val) lv_label_set_text(label_infos_shelly2_val, config_shelly2_ip.length() ? config_shelly2_ip.c_str() : "non configure");
+  if (label_infos_enphase_val) lv_label_set_text(label_infos_enphase_val, config_enphase_ip.length() ? config_enphase_ip.c_str() : "non configure");
+  if (label_infos_msunpv_val) lv_label_set_text(label_infos_msunpv_val, config_msunpv_ip.length() ? config_msunpv_ip.c_str() : "non configure");
+  if (label_infos_mqtt_val) {
+    snprintf(buf, sizeof(buf), "%s:%d", config_mqtt_ip.length() ? config_mqtt_ip.c_str() : "--", config_mqtt_port);
+    lv_label_set_text(label_infos_mqtt_val, buf);
+  }
+  
   snprintf(buf, sizeof(buf), "Ville: %s\nConfig: portail web", weather_city.length() ? weather_city.c_str() : "non configure");
   lv_label_set_text(label_settings_meteo, buf);
   char logbuf[512];

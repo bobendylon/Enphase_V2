@@ -13,6 +13,10 @@
 /* Mémoire pour LVGL (64 Ko) */
 #define LV_MEM_SIZE (64 * 1024U)
 
+/* Backend de dessin : SW uniquement (vg_lite = NXP, inutile sur ESP32) */
+#define LV_USE_DRAW_SW       1
+#define LV_USE_DRAW_VG_LITE  0
+
 /* Polices Montserrat utilisées par l'UI (16, 20, 26, 38) */
 #define LV_FONT_MONTSERRAT_16 1
 #define LV_FONT_MONTSERRAT_20 1

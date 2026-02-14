@@ -9,6 +9,9 @@
 #include <WiFi.h>
 #include <time.h>
 
+extern void addLog(String message);
+extern void addLogf(const char* format, ...);
+
 #define TEMPO_API_HOST "www.api-couleur-tempo.fr"
 #define PREF_TEMPO_ENABLED "tempo_enabled"  // clé NVS (évite d'inclure config.h et ses définitions globales)
 #define TEMPO_INTERVAL_MS (30 * 60 * 1000)  // 30 minutes
@@ -20,7 +23,7 @@ bool tempo_tomorrow_pending = false;
 time_t tempo_last_fetch_time = 0;
 
 static unsigned long last_tempo_fetch = 0;
-static int last_rollover_day = -1;  // jour (tm_mday + mon*32) du dernier rollover
+static int last_rollover_day = -1;  // jour unique (année*400 + mois*32 + jour) du dernier rollover
 
 static void tempo_fetch(void) {
   if (!tempo_enabled || WiFi.status() != WL_CONNECTED) return;
@@ -48,23 +51,44 @@ static void tempo_fetch(void) {
   }
   http.end();
 
-  // Tomorrow
+  // Tomorrow — RTE publie vers 11h ; avant ça l'API peut renvoyer "Couleur à venir" ou autre
   String urlTomorrow = "https://" + String(TEMPO_API_HOST) + "/api/jourTempo/tomorrow";
+  addLog("[TEMPO] Fetch tomorrow: " + urlTomorrow);
   http.begin(urlTomorrow);
   http.addHeader("Accept", "application/json");
   http.setTimeout(10000);
   code = http.GET();
+  addLogf("[TEMPO] Tomorrow HTTP code=%d", code);
   if (code == 200) {
     String payload = http.getString();
+    addLog("[TEMPO] Tomorrow reponse: " + payload.substring(0, payload.length() > 120 ? 120 : payload.length()) + (payload.length() > 120 ? "..." : ""));
     JsonDocument doc;
     if (!deserializeJson(doc, payload)) {
       const char *c = doc["libCouleur"];
       if (c) {
-        tempo_tomorrow_color = String(c);
-        tempo_tomorrow_pending = false;
-        ok_tomorrow = true;
+        String color = String(c);
+        // Seules les 3 couleurs EDF = connu ; "Couleur à venir" ou autre = rester en vert
+        if (color == "Bleu" || color == "Blanc" || color == "Rouge") {
+          tempo_tomorrow_color = color;
+          tempo_tomorrow_pending = false;
+          ok_tomorrow = true;
+          addLogf("[TEMPO] Demain = %s (couleur connue)", color.c_str());
+        } else {
+          tempo_tomorrow_color = "";
+          tempo_tomorrow_pending = true;
+          addLogf("[TEMPO] Demain libCouleur='%s' -> vert (non reconnu, avant 11h?)", color.c_str());
+        }
+      } else {
+        tempo_tomorrow_pending = true;
+        addLog("[TEMPO] Demain pas de libCouleur -> vert");
       }
+    } else {
+      addLog("[TEMPO] Demain JSON invalide -> vert");
+      tempo_tomorrow_pending = true;
     }
+  } else {
+    tempo_tomorrow_pending = true;
+    addLogf("[TEMPO] Demain erreur HTTP %d -> vert", code);
   }
   http.end();
 
@@ -100,16 +124,13 @@ void tempo_update(void) {
   struct tm *t = localtime(&now);
   if (!t) return;
 
-  int current_day = t->tm_mday + t->tm_mon * 32;
+  // Un jour unique par date (année, mois, jour) pour détecter le changement de jour à tout moment
+  int current_day = (t->tm_year + 1900) * 400 + t->tm_mon * 32 + t->tm_mday;
 
-  // Rollover à minuit (00:00 à 00:29 on considère nouveau jour)
-  if (t->tm_hour == 0 && t->tm_min < 30) {
-    if (last_rollover_day != current_day) {
-      tempo_rollover();
-      last_rollover_day = current_day;
-    }
-  } else {
-    last_rollover_day = -1;  // réarmement pour la prochaine nuit
+  // Rollover dès qu'on détecte un nouveau jour (depuis minuit) : today ← tomorrow, demain → vert (en attente)
+  if (last_rollover_day != current_day) {
+    tempo_rollover();
+    last_rollover_day = current_day;
   }
 
   // Fetch au démarrage (dès que 30 s passées) ou toutes les 30 min
@@ -126,8 +147,10 @@ void tempo_setEnabled(bool enabled) {
     tempo_tomorrow_color = "";
     tempo_tomorrow_pending = false;
   } else {
-    // Forcer un fetch au prochain tempo_update() quand on réactive
+    // Forcer un fetch au prochain tempo_update() ; demain = vert jusqu'à réponse EDF
     last_tempo_fetch = 0;
+    tempo_tomorrow_pending = true;
+    tempo_tomorrow_color = "";
   }
 }
 
@@ -137,6 +160,11 @@ void tempo_loadConfig(Preferences &prefs) {
     tempo_today_color = "";
     tempo_tomorrow_color = "";
     tempo_tomorrow_pending = false;
+  } else {
+    // Au démarrage : demain = vert (en attente) tant qu'EDF n'a pas donné la couleur
+    tempo_tomorrow_pending = true;
+    tempo_tomorrow_color = "";
+    addLog("[TEMPO] Demarrage: demain = vert (en attente)");
   }
   tempo_init();
 }

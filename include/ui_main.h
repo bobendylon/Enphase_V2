@@ -735,7 +735,7 @@ void createMainScreen() {
   lv_label_set_text(label_prod_unit, "W");
   lv_obj_set_style_text_color(label_prod_unit, lv_color_hex(COLOR_PROD), 0);
   lv_obj_set_style_text_font(label_prod_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_prod_unit, 145, 46);
+  lv_obj_set_pos(label_prod_unit, 165, 46);
   
   // Consommation (centrée) — remonté 15 px
   lv_obj_t *label_conso_title = lv_label_create(card_left);
@@ -759,7 +759,7 @@ void createMainScreen() {
   lv_label_set_text(label_conso_unit, "W");
   lv_obj_set_style_text_color(label_conso_unit, lv_color_hex(COLOR_CONSO), 0);
   lv_obj_set_style_text_font(label_conso_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_conso_unit, 145, 118);
+  lv_obj_set_pos(label_conso_unit, 165, 118);
   
   // CONSO JOUR (centrée) — remonté pour zone flux 80 px en bas
   lv_obj_t *label_conso_jour_title = lv_label_create(card_left);
@@ -1128,7 +1128,7 @@ void createEnphaseScreen() {
   lv_label_set_text(label_prod_unit, "W");
   lv_obj_set_style_text_color(label_prod_unit, lv_color_hex(COLOR_PROD), 0);
   lv_obj_set_style_text_font(label_prod_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_prod_unit, 145, 52);
+  lv_obj_set_pos(label_prod_unit, 165, 52);
   
   // CONSO MAISON — aligné sur carte droite (titre 110, ligne 142, unité 154)
   lv_obj_t *label_conso_title = lv_label_create(card_left);
@@ -1152,7 +1152,7 @@ void createEnphaseScreen() {
   lv_label_set_text(label_conso_unit, "W");
   lv_obj_set_style_text_color(label_conso_unit, lv_color_hex(COLOR_CONSO), 0);
   lv_obj_set_style_text_font(label_conso_unit, &lv_font_montserrat_20, 0);
-  lv_obj_set_pos(label_conso_unit, 145, 154);
+  lv_obj_set_pos(label_conso_unit, 165, 154);
   
   // ============================================
   // CARTE DROITE (Prod jour, Conso jour)

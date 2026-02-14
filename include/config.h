@@ -214,6 +214,10 @@ const int MSUNPV_UPDATE_INTERVAL = 10000;       // 10 secondes
 // Écran actif principal (V15.0) : 0=MQTT, 1=Enphase
 #define PREF_ACTIVE_SCREEN "active_screen"
 
+// Verrouillage écran Enphase : MDP requis pour quitter le mode Enphase (web + LVGL)
+#define PREF_SCREEN_LOCK_ENABLED "screen_lock_enabled"
+#define PREF_SCREEN_LOCK_PWD "screen_lock_pwd"
+
 // Format de date (V14.0)
 #define PREF_DATE_FORMAT "date_format"
 

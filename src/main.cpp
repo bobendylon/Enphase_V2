@@ -11,6 +11,7 @@
 #include <ArduinoOTA.h>
 #include <Update.h>
 #include <esp_ota_ops.h>
+#include <esp_random.h>
 #include <WebServer.h>
 #include <Preferences.h>
 #include <stdarg.h>
@@ -58,6 +59,12 @@ bool screenFlipped = false;
 
 // V15.0 - Écran actif : 0=MQTT (date blanche), 1=Enphase (date orange), 2=M'SunPV (date verte)
 uint8_t activeScreenType = 0;
+
+// Verrouillage écran Enphase : MDP requis pour quitter le mode Enphase (web)
+bool screenLockEnabled = false;
+String screenLockPassword = "";
+static String unlockToken = "";
+static unsigned long unlockExpiry = 0;
 
 // V14.0 - Format de date (0=complet, 1=abrégé+mois, 2=compact, 3=abrégé+date)
 int dateFormatIndex = 1;  // Par défaut: "Dim. 28 Déc. 2025"
@@ -207,6 +214,8 @@ void handleSaveScreenFlip();
 // V15.0 - Sélection écran MQTT / Enphase
 void handleScreensWeb();
 void handleSaveScreens();
+void handleUnlockScreen();
+void handleSaveScreenLock();
 // V14.0 - Format de date
 void handleSaveDateFormat();
 // Luminosité écran (page Info)
@@ -591,6 +600,8 @@ void setup() {
   // V15.0 - Sélection écran (MQTT / Enphase)
   server.on("/screens", handleScreensWeb);
   server.on("/saveScreens", HTTP_POST, handleSaveScreens);
+  server.on("/unlockScreen", HTTP_POST, handleUnlockScreen);
+  server.on("/saveScreenLock", HTTP_POST, handleSaveScreenLock);
   // V14.0 - Format de date
   server.on("/saveDateFormat", HTTP_POST, handleSaveDateFormat);
   server.on("/saveBrightness", HTTP_POST, handleSaveBrightness);
@@ -2105,7 +2116,18 @@ void handleInfoWeb() {
   html += "<p style='margin-top:10px'><a href='/screens' class='btn' style='display:inline-block;text-decoration:none;cursor:pointer;border:none'>🖥️ Choisir l'écran (MQTT / Enphase / M'SunPV)</a></p>";
   html += "<p><span class='label'>Rotation:</span> <span class='value' style='color:" + String(screenFlipped ? "#22c55e" : "#9ca3af") + "'>" + String(screenFlipped ? "180° (Retourné)" : "0° (Normal)") + "</span></p>";
   html += "<p style='margin-top:15px'><button onclick='toggleScreenFlip()' class='btn' style='display:inline-block;cursor:pointer;border:none;background:" + String(screenFlipped ? "#ef4444" : "#22c55e") + "'>" + String(screenFlipped ? "↩️ Remettre Normal" : "🔄 Retourner 180°") + "</button></p>";
-  html += "<p style='color:#6b7280;margin-top:10px;font-size:0.9em'>L'écran sera retourné immédiatement après sauvegarde</p></div>";
+  html += "<p style='color:#6b7280;margin-top:10px;font-size:0.9em'>L'écran sera retourné immédiatement après sauvegarde</p>";
+  // Verrouillage Enphase : MDP requis pour quitter le mode Enphase
+  html += "<h3 style='margin-top:20px;margin-bottom:10px;color:#d1d5db;font-size:1em'>🔒 Verrouillage Enphase</h3>";
+  html += "<p style='color:#9ca3af;font-size:0.9em;margin-bottom:10px'>Quand l'écran est sur Enphase, exiger un mot de passe pour changer d'écran (web et écran LVGL).</p>";
+  html += "<form method='POST' action='/saveScreenLock' style='margin-top:12px'>";
+  html += "<label style='display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer'>";
+  html += "<input type='checkbox' name='lock_enabled' value='1'" + String(screenLockEnabled ? " checked" : "") + ">";
+  html += "<span>Activer le verrouillage (mot de passe requis pour quitter le mode Enphase)</span></label>";
+  html += "<p><span class='label'>Mot de passe pour déverrouiller:</span></p>";
+  html += "<input type='password' name='pwd' placeholder='Mot de passe (laisser vide pour ne pas changer)' style='width:100%;max-width:280px;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #4b5563;background:#1f2937;color:#fff'>";
+  html += "<p style='margin-top:12px'><button type='submit' class='btn' style='display:inline-block;cursor:pointer;border:none;background:#f59e0b;color:#0c0a09'>Enregistrer</button></p>";
+  html += "</form></div>";
   
   // Luminosité écran (jour / nuit, 0–255)
   html += "<div class='card'><h2>💡 Luminosité écran</h2>";
@@ -2372,6 +2394,8 @@ void handleExportConfig() {
   doc[PREF_ENPHASE_SERIAL] = config_enphase_serial;
   doc[PREF_SCREEN_FLIPPED] = screenFlipped;
   doc[PREF_ACTIVE_SCREEN] = activeScreenType;
+  doc[PREF_SCREEN_LOCK_ENABLED] = screenLockEnabled;
+  doc[PREF_SCREEN_LOCK_PWD] = screenLockPassword;
   doc[PREF_DATE_FORMAT] = dateFormatIndex;
   doc[PREF_BRIGHTNESS_DAY] = (int)brightnessDay;
   doc[PREF_BRIGHTNESS_NIGHT] = (int)brightnessNight;
@@ -2412,6 +2436,12 @@ void handleImportConfig() {
       else if (v.is<long>()) { uint8_t n = (uint8_t)v.as<long>(); if (n <= 2) preferences.putUChar(k, n); }
     } else if (strcmp(k, PREF_SCREEN_FLIPPED) == 0) {
       if (v.is<bool>()) preferences.putBool(k, v.as<bool>());
+    } else if (strcmp(k, PREF_SCREEN_LOCK_ENABLED) == 0) {
+      if (v.is<bool>()) preferences.putBool(k, v.as<bool>());
+      else if (v.is<int>() || v.is<long>()) preferences.putBool(k, (v.as<long>() != 0));
+    } else if (strcmp(k, PREF_SCREEN_LOCK_PWD) == 0) {
+      if (v.is<const char*>()) preferences.putString(k, v.as<const char*>());
+      else if (v.is<String>()) preferences.putString(k, v.as<String>());
     } else if (strcmp(k, PREF_BRIGHTNESS_DAY) == 0 || strcmp(k, PREF_BRIGHTNESS_NIGHT) == 0) {
       if (v.is<int>()) { int n = v.as<int>(); if (n >= 0 && n <= 255) preferences.putUChar(k, (uint8_t)n); }
       else if (v.is<long>()) { long n = v.as<long>(); if (n >= 0 && n <= 255) preferences.putUChar(k, (uint8_t)n); }
@@ -2462,11 +2492,29 @@ void handleSaveScreenFlip() {
 }
 
 // V15.0 - Page sélection écran (MQTT / Enphase)
+// Retourne true si le client est déverrouillé (cookie valide)
+static bool isUnlockCookieValid() {
+  if (unlockToken.length() == 0 || millis() >= unlockExpiry) return false;
+  if (!server.hasHeader("Cookie")) return false;
+  String cookie = server.header("Cookie");
+  int i = cookie.indexOf("unlock_token=");
+  if (i < 0) return false;
+  i += 13;
+  int j = cookie.indexOf(";", i);
+  String token = (j > i) ? cookie.substring(i, j) : cookie.substring(i);
+  token.trim();
+  return (token == unlockToken);
+}
+
 void handleScreensWeb() {
   if (wifiAPMode) {
     handleWiFiSetupPage();
     return;
   }
+  // Verrouillé = mode Enphase + verrouillage activé + MDP défini
+  bool locked = (activeScreenType == 1 && screenLockEnabled && screenLockPassword.length() > 0);
+  bool unlocked = isUnlockCookieValid();
+
   String html = R"(<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><link rel='icon' type='image/svg+xml' href='/favicon.ico'><title>Écran - MSunPV</title><style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;min-height:100vh;padding:24px}
@@ -2481,60 +2529,122 @@ void handleScreensWeb() {
     .card .icon{font-size:2.5em;margin-bottom:12px}
     .card .title{font-size:1.15em;font-weight:600;color:#fff;margin-bottom:6px}
     .card .desc{font-size:0.85em;color:#9ca3af;line-height:1.4}
+    .unlock-box{background:rgba(41,37,36,0.95);border:2px solid rgba(251,191,36,0.4);border-radius:16px;padding:28px;max-width:400px;margin-top:20px}
+    .unlock-box input[type=password]{width:100%;padding:12px;margin:12px 0;border-radius:8px;border:1px solid #4b5563;background:#1f2937;color:#fff;font-size:1em}
+    .unlock-box button{background:#f59e0b;color:#0c0a09;border:none;padding:12px 24px;border-radius:8px;font-weight:600;cursor:pointer}
+    .unlock-box button:hover{background:#fbbf24}
+    .unlock-err{color:#ef4444;font-size:0.9em;margin-top:8px}
     @media(max-width:480px){.grid{grid-template-columns:1fr}}
   </style></head><body>)";
   html += "<a href='/info' class='back'>&larr; Retour</a>";
-  html += "<h1>🖥️ Sélection de l'écran</h1>";
-  html += "<p class='sub'>Choisissez l'écran principal. Date : blanche (MQTT), orange (Enphase), verte (M'SunPV).</p>";
-  html += "<div class='grid'>";
-  
-  // Carte MQTT
-  html += "<div class='card' id='card0' onclick='selectScreen(0)'";
-  if (activeScreenType == 0) html += " style='border-color:#f59e0b;background:rgba(245,158,11,0.1)'";
-  html += "><div class='icon'>📡</div><div class='title'>Écran MQTT</div><div class='desc'>Données Shelly, production, consommation. Date blanche.</div></div>";
-  
-  // Carte Enphase
-  html += "<div class='card' id='card1' onclick='selectScreen(1)'";
-  if (activeScreenType == 1) html += " style='border-color:#f59e0b;background:rgba(245,158,11,0.1)'";
-  html += "><div class='icon'>⚡</div><div class='title'>Écran Enphase</div><div class='desc'>Même affichage avec date orange.</div></div>";
-  
-  // Carte M'SunPV
-  html += "<div class='card' id='card2' onclick='selectScreen(2)'";
-  if (activeScreenType == 2) html += " style='border-color:#f59e0b;background:rgba(245,158,11,0.1)'";
-  html += "><div class='icon'>🌡</div><div class='title'>Écran M'SunPV</div><div class='desc'>Données routeur M'SunPV, routage, conso jour. Date verte.</div></div>";
-  
-  html += "</div>";
-  html += "<p style='color:#6b7280;margin-top:20px;font-size:0.9em'>Le changement s'applique immédiatement à l'écran.</p>";
-  html += R"(<script>
+
+  if (locked && !unlocked) {
+    // Afficher formulaire de déverrouillage
+    html += "<h1>🔒 Écran verrouillé</h1>";
+    html += "<p class='sub'>L'écran est en mode Enphase et verrouillé. Entrez le mot de passe pour changer d'écran.</p>";
+    html += "<div class='unlock-box'>";
+    html += "<form method='POST' action='/unlockScreen'>";
+    html += "<label for='pwd'>Mot de passe</label><br>";
+    html += "<input type='password' id='pwd' name='pwd' placeholder='Mot de passe' required autofocus>";
+    html += "<button type='submit'>Déverrouiller</button>";
+    html += "</form>";
+    if (server.hasArg("err")) html += "<p class='unlock-err'>Mot de passe incorrect.</p>";
+    html += "</div>";
+  } else {
+    // Afficher sélection d'écran
+    html += "<h1>🖥️ Sélection de l'écran</h1>";
+    html += "<p class='sub'>Choisissez l'écran principal. Date : blanche (MQTT), orange (Enphase), verte (M'SunPV).</p>";
+    html += "<div class='grid'>";
+
+    html += "<div class='card' id='card0' onclick='selectScreen(0)'";
+    if (activeScreenType == 0) html += " style='border-color:#f59e0b;background:rgba(245,158,11,0.1)'";
+    html += "><div class='icon'>📡</div><div class='title'>Écran MQTT</div><div class='desc'>Données Shelly, production, consommation. Date blanche.</div></div>";
+
+    html += "<div class='card' id='card1' onclick='selectScreen(1)'";
+    if (activeScreenType == 1) html += " style='border-color:#f59e0b;background:rgba(245,158,11,0.1)'";
+    html += "><div class='icon'>⚡</div><div class='title'>Écran Enphase</div><div class='desc'>Même affichage avec date orange.</div></div>";
+
+    html += "<div class='card' id='card2' onclick='selectScreen(2)'";
+    if (activeScreenType == 2) html += " style='border-color:#f59e0b;background:rgba(245,158,11,0.1)'";
+    html += "><div class='icon'>🌡</div><div class='title'>Écran M'SunPV</div><div class='desc'>Données routeur M'SunPV, routage, conso jour. Date verte.</div></div>";
+
+    html += "</div>";
+    html += "<p style='color:#6b7280;margin-top:20px;font-size:0.9em'>Le changement s'applique immédiatement à l'écran.</p>";
+    html += R"(<script>
     function selectScreen(n) {
       fetch('/saveScreens', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: 'screen=' + n })
         .then(r => r.json())
-        .then(d => { if (d.success) { for (var i=0;i<=2;i++) { var c=document.getElementById('card'+i); if(c){ c.style.borderColor=(i==n)?'#f59e0b':''; c.style.background=(i==n)?'rgba(245,158,11,0.1)':''; } } } });
+        .then(d => {
+          if (d.success) {
+            for (var i=0;i<=2;i++) { var c=document.getElementById('card'+i); if(c){ c.style.borderColor=(i==n)?'#f59e0b':''; c.style.background=(i==n)?'rgba(245,158,11,0.1)':''; } }
+          } else if (d.locked) {
+            window.location.href = '/screens?err=1';
+          }
+        });
     }
-  </script></body></html>)";
+  </script>)";
+  }
+  html += "</body></html>";
   server.send(200, "text/html", html);
 }
 
-void handleSaveScreens() {
-  if (server.hasArg("screen")) {
-    uint8_t n = (uint8_t)server.arg("screen").toInt();
-    if (n <= 2) {
-      activeScreenType = n;
-      savePreferences();
-      if (currentPage == 0) {
-        lv_screen_load(n == 0 ? screenMain : screenEnphase);  // 1=Enphase, 2=M'SunPV réutilise screenEnphase
-      }
-      if (screenMain) lv_obj_invalidate(screenMain);
-      if (screenEnphase) lv_obj_invalidate(screenEnphase);
-      lv_refr_now(disp);
-      server.send(200, "application/json", "{\"success\":true,\"screen\":" + String(n) + "}");
-      Serial.println("[V15.0] Écran: " + String(n == 0 ? "MQTT" : (n == 1 ? "Enphase" : "M'SunPV")));
-    } else {
-      server.send(400, "application/json", "{\"success\":false,\"error\":\"Invalid value\"}");
-    }
-  } else {
-    server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing parameter\"}");
+void handleUnlockScreen() {
+  if (!server.hasArg("pwd")) {
+    server.sendHeader("Location", "/screens?err=1");
+    server.send(302, "text/plain", "");
+    return;
   }
+  if (server.arg("pwd") != screenLockPassword) {
+    server.sendHeader("Location", "/screens?err=1");
+    server.send(302, "text/plain", "");
+    return;
+  }
+  unlockToken = String((unsigned long)esp_random(), HEX);
+  unlockExpiry = millis() + 300000;  // 5 min
+  server.sendHeader("Set-Cookie", "unlock_token=" + unlockToken + "; Path=/; Max-Age=300");
+  server.sendHeader("Location", "/screens");
+  server.send(302, "text/plain", "");
+  Serial.println("[Screen] Déverrouillage OK");
+}
+
+void handleSaveScreens() {
+  if (!server.hasArg("screen")) {
+    server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing parameter\"}");
+    return;
+  }
+  uint8_t n = (uint8_t)server.arg("screen").toInt();
+  if (n > 2) {
+    server.send(400, "application/json", "{\"success\":false,\"error\":\"Invalid value\"}");
+    return;
+  }
+  // Si verrouillé (Enphase + MDP activé), quitter Enphase (n=0 ou 2) exige un déverrouillage valide
+  bool locked = (activeScreenType == 1 && screenLockEnabled && screenLockPassword.length() > 0);
+  if (locked && (n == 0 || n == 2) && !isUnlockCookieValid()) {
+    server.send(403, "application/json", "{\"success\":false,\"locked\":true,\"error\":\"Mot de passe requis\"}");
+    return;
+  }
+  activeScreenType = n;
+  savePreferences();
+  if (currentPage == 0) {
+    lv_screen_load(n == 0 ? screenMain : screenEnphase);
+  }
+  if (screenMain) lv_obj_invalidate(screenMain);
+  if (screenEnphase) lv_obj_invalidate(screenEnphase);
+  lv_refr_now(disp);
+  server.send(200, "application/json", "{\"success\":true,\"screen\":" + String(n) + "}");
+  Serial.println("[V15.0] Écran: " + String(n == 0 ? "MQTT" : (n == 1 ? "Enphase" : "M'SunPV")));
+}
+
+void handleSaveScreenLock() {
+  screenLockEnabled = (server.hasArg("lock_enabled") && server.arg("lock_enabled") == "1");
+  if (server.hasArg("pwd")) {
+    String p = server.arg("pwd");
+    if (p.length() > 0) screenLockPassword = p;
+  }
+  savePreferences();
+  server.sendHeader("Location", "/info");
+  server.send(302, "text/plain", "");
+  Serial.println("[Screen] Verrouillage Enphase: " + String(screenLockEnabled ? "activé" : "désactivé"));
 }
 
 // Page Réglages (écran LVGL, roue dentée)
@@ -2924,6 +3034,10 @@ void loadPreferences() {
   // V15.0 - Écran actif (MQTT vs Enphase)
   activeScreenType = preferences.getUChar(PREF_ACTIVE_SCREEN, 0);
   
+  // Verrouillage écran Enphase (MDP pour quitter le mode Enphase)
+  screenLockEnabled = preferences.getBool(PREF_SCREEN_LOCK_ENABLED, false);
+  screenLockPassword = preferences.getString(PREF_SCREEN_LOCK_PWD, "");
+  
   // V14.0 - Format de date
   dateFormatIndex = preferences.getInt(PREF_DATE_FORMAT, 1);  // Défaut: format abrégé
   
@@ -2966,6 +3080,10 @@ void savePreferences() {
   
   // V15.0 - Écran actif
   preferences.putUChar(PREF_ACTIVE_SCREEN, activeScreenType);
+  
+  // Verrouillage écran Enphase
+  preferences.putBool(PREF_SCREEN_LOCK_ENABLED, screenLockEnabled);
+  preferences.putString(PREF_SCREEN_LOCK_PWD, screenLockPassword);
   
   // V14.0 - Format de date
   preferences.putInt(PREF_DATE_FORMAT, dateFormatIndex);

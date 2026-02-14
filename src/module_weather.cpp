@@ -192,8 +192,11 @@ void weather_update() {
 // Genere automatiquement - Ne pas editer manuellement
 
 static String getSVGIcon(int code) {
-  // PNG Base64 data for weather icons
-
+  // TEST: Retourner un simple SVG pour isoler le bug
+  return "<svg width='50' height='50'><circle cx='25' cy='25' r='20' fill='orange'/></svg>";
+  
+  // PNG Base64 data for weather icons (DÉSACTIVÉ pour test)
+  /*
   static const char img_01d[] PROGMEM =
     "iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAYAAAA5ZDbSAAAQAElEQVR4Aey9V7Bm2XXf91v7pC/ffG/n"
     "7unJwMwABAYDEJkgSDCINEhaNG2aKqUqucouPdgvtmyXH+wX+8EqqVzlUmDJkAVblClTgSSYBBCJIJFn"
@@ -3817,6 +3820,7 @@ static String getSVGIcon(int code) {
     "7bPEvhyRPh1CpWoMit7tXP7S5f9iAP+lJ3a5v9Mc+P8AAAD//wfPRwIAAAAGSURBVAMAPe6X0diLSCcA"
     "AAAASUVORK5CYII=";
 
+  /*
   const char* imgData = nullptr;
   
   switch(code) {
@@ -3881,10 +3885,18 @@ static String getSVGIcon(int code) {
   }
 
   if (imgData) {
-    return "<img src='data:image/png;base64," + String(imgData) + "' style='width:50px;height:50px;'/>";
+    // Sur ESP32, il faut copier PROGMEM vers RAM d'abord
+    size_t len = strlen_P(imgData);
+    String imgStr;
+    imgStr.reserve(len + 1);
+    for (size_t i = 0; i < len; i++) {
+      imgStr += (char)pgm_read_byte(imgData + i);
+    }
+    return "<img src='data:image/png;base64," + imgStr + "' style='width:50px;height:50px;'/>";
   } else {
     return "<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><circle cx='50' cy='50' r='30' fill='none' stroke='#60a5fa' stroke-width='2'/></svg>";
   }
+  */
 }
 
 
@@ -3960,7 +3972,7 @@ body {
 <div class='container'>
   <div class='header'>
     <h1>🌦️ Météo <span id='cityName'>)";
-  html += weather_city;
+  html += config_weather_city;  // Utilise la config NVS au lieu de l'API
   html += R"(</span></h1>
     <p id='lastUpdate'>Dernière mise à jour: )";
   html += weather_last_update;
@@ -4091,7 +4103,14 @@ body {
       <div class='form-group'>
         <label>📍 Ville:</label>
         <input type='text' name='city' value=')";
-  html += config_weather_city;
+  // HTML escape la ville pour éviter les injections
+  String escapedCity = config_weather_city;
+  escapedCity.replace("&", "&amp;");
+  escapedCity.replace("<", "&lt;");
+  escapedCity.replace(">", "&gt;");
+  escapedCity.replace("'", "&#39;");
+  escapedCity.replace("\"", "&quot;");
+  html += escapedCity;
   html += R"(' placeholder='Ex: Geaune, Paris, Lyon' required>
         <small>Format: Nom de la ville ou "Ville, Pays"</small>
       </div>
@@ -4181,7 +4200,7 @@ p{color:#9ca3af;margin-top:20px}</style>
 void weather_handleAPI(WebServer* server) {
   // Construire JSON avec toutes les données
   String json = "{";
-  json += "\"city\":\"" + weather_city + "\",";
+  json += "\"city\":\"" + config_weather_city + "\",";  // Utilise la config NVS
   json += "\"temp\":" + String(weather_temp, 1) + ",";
   json += "\"feels_like\":" + String(weather_feels_like, 1) + ",";
   json += "\"condition\":\"" + weather_condition + "\",";

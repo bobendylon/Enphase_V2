@@ -2054,8 +2054,8 @@ void updateEnphaseUI() {
   lv_label_set_text(label_ep_prod, buffer);
   lv_obj_set_style_text_color(label_ep_prod, lv_color_hex(COLOR_PROD), 0);
   
-  // Conso maison live (W) - enphase_pact_conso (négatif = export)
-  sprintf(buffer, "%.0f", enphase_pact_conso);
+  // Conso maison live (W) - enphase_pact_grid (ENEDIS - négatif = export)
+  sprintf(buffer, "%.0f", enphase_pact_grid);
   lv_label_set_text(label_ep_conso, buffer);
   lv_obj_set_style_text_color(label_ep_conso, lv_color_hex(COLOR_CONSO), 0);
   
@@ -2070,7 +2070,7 @@ void updateEnphaseUI() {
   // Zone flux PV → Maison → Réseau (données Enphase)
   if (zone_flow_left_ep && img_arrow_pv_house_ep && img_arrow_house_grid_ep && label_flow_pv_val_ep && label_flow_grid_val_ep && img_flow_reseau_ep) {
     float prod_w = enphase_pact_prod;
-    float conso_w = enphase_pact_conso;
+    float grid_w = enphase_pact_grid;  // ENEDIS au lieu de conso
     bool pv_arrow_visible = (prod_w > (float)FLOW_THRESHOLD_PV_W);
     
     sprintf(buffer, "%d W", (int)(prod_w + 0.5f));
@@ -2084,19 +2084,19 @@ void updateEnphaseUI() {
       lv_obj_add_flag(label_flow_pv_val_ep, LV_OBJ_FLAG_HIDDEN);
     }
     
-    if (conso_w < 0.f) {
+    if (grid_w < 0.f) {
       lv_img_set_src(img_flow_reseau_ep, &reseau_electrique);
       lv_img_set_src(img_arrow_house_grid_ep, &icoflechedroiteverte);
       lv_obj_remove_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
       lv_obj_remove_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
-      sprintf(buffer, "%d W", (int)(-conso_w + 0.5f));
+      sprintf(buffer, "%d W", (int)(-grid_w + 0.5f));
       lv_label_set_text(label_flow_grid_val_ep, buffer);
-    } else if (conso_w > 0.f) {
+    } else if (grid_w > 0.f) {
       lv_img_set_src(img_flow_reseau_ep, &reseau_electrique);
       lv_img_set_src(img_arrow_house_grid_ep, &icoflechegaucheorange);
       lv_obj_remove_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
       lv_obj_remove_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
-      sprintf(buffer, "%d W", (int)(conso_w + 0.5f));
+      sprintf(buffer, "%d W", (int)(grid_w + 0.5f));
       lv_label_set_text(label_flow_grid_val_ep, buffer);
     } else {
       lv_img_set_src(img_flow_reseau_ep, &reseau_electrique);
@@ -2107,12 +2107,12 @@ void updateEnphaseUI() {
   
   // Badge état réseau (Import / Auto / Export) — tiers droit flux
   if (obj_flow_state_ep && label_flow_state_ep) {
-    float conso_w = enphase_pact_conso;
+    float grid_w = enphase_pact_grid;  // ENEDIS au lieu de conso
     #define FLOW_STATE_THRESHOLD_W 5.f
-    if (conso_w > FLOW_STATE_THRESHOLD_W) {
+    if (grid_w > FLOW_STATE_THRESHOLD_W) {
       lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0xd97706), 0);   // Import (ambre)
       lv_label_set_text(label_flow_state_ep, "Import");
-    } else if (conso_w < -FLOW_STATE_THRESHOLD_W) {
+    } else if (grid_w < -FLOW_STATE_THRESHOLD_W) {
       lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0x0d9488), 0);   // Export (bleu-vert)
       lv_label_set_text(label_flow_state_ep, "Export");
     } else {

@@ -529,6 +529,7 @@ document.getElementById('count').textContent=')";
 // SETUP
 void setup() {
   Serial.begin(115200);
+  delay(500);  // Attendre que le port USB CDC s'initialise
   Serial.println("\nMSunPV Monitor V12.0 - Démarrage\n");
   
   // V3.2 - Charger configuration depuis NVS

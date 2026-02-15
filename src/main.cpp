@@ -14,6 +14,7 @@
 #include <esp_random.h>
 #include <WebServer.h>
 #include <Preferences.h>
+#include <nvs.h>
 #include <stdarg.h>
 #include "touch.h"
 #include "favicon.h"
@@ -214,6 +215,7 @@ void handleEnphaseMonitorHome();
 void handleExportEnphaseConfig();
 void handleEnphaseMonitorData();
 void handleEnphaseReglages();
+void handleDisclaimer();
 // V14.0 - Format de date
 void handleSaveDateFormat();
 // Luminosité écran (page Info)
@@ -629,6 +631,7 @@ void setup() {
   server.on("/enphase-monitor", handleEnphaseMonitorHome);
   server.on("/enphaseMonitorData", handleEnphaseMonitorData);
   server.on("/enphase-reglages", handleEnphaseReglages);
+  server.on("/disclaimer", handleDisclaimer);
   // V12.1 - Logs système
   server.on("/logs", handleLogs);
   // V13.0 - SD Card status
@@ -1600,7 +1603,7 @@ void handleEnphaseMonitorData() {
   time_t now = time(NULL);
   struct tm *t = localtime(&now);
   char timeBuf[16];
-  sprintf(timeBuf, "%02d:%02d:%02d", t->tm_hour, t->tm_min, t->tm_sec);
+  sprintf(timeBuf, "%02d:%02d", t->tm_hour, t->tm_min);
   char dateBuf[64];
   const char* daysShort[] = {"Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."};
   const char* months[] = {"Jan.", "Fev.", "Mar.", "Avr.", "Mai", "Juin", "Juil.", "Aout", "Sep.", "Oct.", "Nov.", "Dec."};
@@ -1658,6 +1661,7 @@ body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-
 .meteo-droite{display:flex;gap:10px;flex:1;justify-content:flex-end;flex-wrap:wrap}
 .meteo-droite .forecast-day{text-align:center;min-width:52px}
 .meteo-droite .forecast-day .d{font-size:0.75em;color:#9ca3af;margin-bottom:2px}
+.meteo-droite .forecast-day .ico{font-size:1.1em;line-height:1;margin:2px 0}
 .meteo-droite .forecast-day .t{font-size:0.95em;font-weight:600;color:#fff}
 .cartes-deux{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
 .cartes-deux .carte{flex:1;min-width:140px;padding:14px;border-radius:12px;border:1px solid rgba(251,191,36,0.25);background:rgba(41,37,36,0.9)}
@@ -1679,13 +1683,14 @@ body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-
 <div class='header'>
   <span class='header-title'>☀️ Enphase Monitor</span>
   <span class='header-date' id='dateStr'>--</span>
-  <span class='header-time' id='timeStr'>--:--:--</span>
+  <span class='header-time' id='timeStr'>--:--</span>
   <div class='header-row'>
     <span id='icoWifi' class='ko' title='WiFi'>📶</span>
     <span id='icoMqtt' class='ko' title='MQTT'>📡</span>
     <span id='icoEnphase' class='ko' title='Enphase'>⚡</span>
     <a href='/mqtt'>Config MQTT</a>
     <a href='/enphase-reglages'>Réglages</a>
+    <a href='/disclaimer?from=enphase'>Avertissement</a>
   </div>
 </div>
 <div class='barre-meteo'>
@@ -1723,7 +1728,7 @@ function codeToEmoji(c){if(c==null)return'--';var x=Number(c);if(x>=800&&x<803)r
 function upd(){
   fetch('/enphaseMonitorData').then(r=>r.json()).then(d=>{
     document.getElementById('dateStr').textContent=d.date||'--';
-    document.getElementById('timeStr').textContent=d.time||'--:--:--';
+    document.getElementById('timeStr').textContent=d.time||'--:--';
     document.getElementById('icoWifi').className=d.wifi?'ok':'ko';
     var icoMqtt=document.getElementById('icoMqtt');if(icoMqtt)icoMqtt.className=(d.mqtt_connected?'ok':'ko');
     document.getElementById('icoEnphase').className=d.enphase_connected?'ok':'ko';
@@ -1732,7 +1737,7 @@ function upd(){
     document.getElementById('weatherIco').textContent=codeToEmoji(d.weather_code);
     var fr=document.getElementById('forecastRow');
     fr.innerHTML='';
-    if(d.forecast&&d.forecast.length){for(var i=0;i<d.forecast.length;i++){var x=d.forecast[i];var n=x.day_name||x.day;var div=document.createElement('div');div.className='forecast-day';div.innerHTML='<div class="d">'+n+'</div><div class="t">'+x.temp+'°</div>';fr.appendChild(div);}}
+    if(d.forecast&&d.forecast.length){for(var i=0;i<d.forecast.length;i++){var x=d.forecast[i];var n=x.day_name||x.day;var div=document.createElement('div');div.className='forecast-day';div.innerHTML='<div class="d">'+n+'</div><div class="ico">'+codeToEmoji(x.code)+'</div><div class="t">'+x.temp+'°</div>';fr.appendChild(div);}}
     document.getElementById('valProd').textContent=(d.pact_prod!=null?Math.round(d.pact_prod):0)+' W';
     document.getElementById('valConso').textContent=(d.pact_grid!=null?Math.round(d.pact_grid):0)+' W';
     document.getElementById('valPvMaison').textContent=(d.pact_prod!=null?Math.round(d.pact_prod):0)+' W';
@@ -1824,7 +1829,35 @@ h1{color:#fbbf24;margin-bottom:8px;font-size:1.6em}
   }
   </script>)";
   html += "<a href='/' class='compte-dev' title='Accueil complet'>🔧 Accueil complet</a>";
+  html += "<p style='margin-top:24px'><a href='/disclaimer' style='color:#6b7280;font-size:0.85em'>⚠️ Avertissement / Responsabilité</a></p>";
   html += "</body></html>";
+  server.send(200, "text/html", html);
+}
+
+void handleDisclaimer() {
+  if (wifiAPMode) { handleWiFiSetupPage(); return; }
+  String backUrl = (server.hasArg("from") && server.arg("from") == "enphase") ? "/enphase-monitor" : "/";
+  String html = R"(<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>
+<link rel='icon' type='image/svg+xml' href='/favicon.ico'><title>Avertissement - Enphase V2</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;min-height:100vh;padding:20px}
+.back{display:inline-block;background:#374151;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;margin-bottom:24px}
+.back:hover{background:#4b5563}
+h1{color:#fbbf24;margin-bottom:16px;font-size:1.5em}
+.disclaimer{background:rgba(41,37,36,0.9);border:1px solid rgba(251,191,36,0.3);border-radius:12px;padding:24px;max-width:560px;color:#d1d5db;font-size:0.95em;line-height:1.6}
+.disclaimer p{margin-bottom:12px}
+.disclaimer ul{margin:12px 0 12px 20px}
+.disclaimer li{margin-bottom:6px}
+.disclaimer strong{color:#fbbf24}
+</style></head><body>)";
+  html += "<a href='" + backUrl + "' class='back'>&larr; Retour</a>";
+  html += "<h1>⚠️ Avertissement et limitation de responsabilité</h1>";
+  html += "<div class='disclaimer'>";
+  html += "<p>Ce logiciel et ce firmware (Enphase V2 — écran LVGL et serveur web) sont fournis <strong>« tels quels »</strong>, sans garantie d'aucune sorte.</p>";
+  html += "<p><strong>Aucune responsabilité</strong> n'est acceptée en cas de : mauvaise utilisation, dommages matériels, perte de données ou dysfonctionnement. L'utilisateur est seul responsable de l'installation et de l'utilisation.</p>";
+  html += "<p>Projet à but personnel / éducatif. En utilisant ce firmware ou cette interface, vous acceptez ces conditions.</p>";
+  html += "</div></body></html>";
   server.send(200, "text/html", html);
 }
 
@@ -2400,6 +2433,13 @@ void settings_do_factory_reset(void) {
   preferences.begin(PREF_NAMESPACE, false);
   preferences.clear();
   preferences.end();
+  // Effacer aussi les credentials WiFi stockés par le stack WiFi (nvs.net80211)
+  nvs_handle_t net80211;
+  if (nvs_open("nvs.net80211", NVS_READWRITE, &net80211) == ESP_OK) {
+    nvs_erase_all(net80211);
+    nvs_commit(net80211);
+    nvs_close(net80211);
+  }
   ESP.restart();
 }
 
@@ -2634,7 +2674,7 @@ void handleSettingsWeb() {
   
   html += "<div class='card'><h2>ℹ️ Information</h2>";
   html += "<p style='color:#d1d5db'>La luminosité de l'écran se règle depuis la page <a href='/info' style='color:#fbbf24'>Info</a>. Les autres paramètres avancés (seuils, IP M'SunPV) peuvent nécessiter config.h</p></div>";
-  
+  html += "<p style='margin-top:20px'><a href='/disclaimer' style='color:#6b7280;font-size:0.9em'>⚠️ Avertissement / Responsabilité</a></p>";
   html += "</body></html>";
   server.send(200, "text/html", html);
 }

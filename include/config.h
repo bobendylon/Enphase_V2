@@ -233,7 +233,7 @@ const int MSUNPV_UPDATE_INTERVAL = 10000;       // 10 secondes
 // ============================================
 // MODE AP (FALLBACK) - V3.3
 // ============================================
-#define WIFI_AP_SSID "MSunPV-Setup"
+#define WIFI_AP_SSID "Enphase-Monitor-Setup"
 #define WIFI_CONNECT_TIMEOUT 15000
 
 #endif

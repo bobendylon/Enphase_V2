@@ -1441,6 +1441,14 @@ void createSettingsScreen() {
   lv_obj_set_style_text_font(lres, &lv_font_montserrat_16, 0);
   lv_obj_center(lres);
   
+  lv_obj_t *lbl_disclaimer = lv_label_create(tab_maint);
+  lv_label_set_text(lbl_disclaimer, "Usage a vos risques. Pas de garantie.");
+  lv_obj_set_style_text_font(lbl_disclaimer, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(lbl_disclaimer, lv_color_hex(0x6b7280), 0);
+  lv_obj_align(lbl_disclaimer, LV_ALIGN_TOP_LEFT, 0, 178);
+  lv_obj_set_width(lbl_disclaimer, 420);
+  lv_label_set_long_mode(lbl_disclaimer, LV_LABEL_LONG_WRAP);
+  
   lv_obj_set_style_pad_all(tab_logs, 10, 0);
   lv_obj_set_scrollbar_mode(tab_logs, LV_SCROLLBAR_MODE_ON);
   lv_obj_t *card_logs = lv_obj_create(tab_logs);
@@ -1850,12 +1858,32 @@ void updateEnphaseUI() {
   }
   
   // Badge état réseau (Import / Auto / Export) — tiers droit flux
+  // Import : paliers de couleur + libellé (0-1k, 1.5k, 2k, 3k, 3k+) pour voir de loin le niveau
   if (obj_flow_state_ep && label_flow_state_ep) {
     float grid_w = enphase_pact_grid;  // ENEDIS au lieu de conso
     #define FLOW_STATE_THRESHOLD_W 5.f
     if (grid_w > FLOW_STATE_THRESHOLD_W) {
-      lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0xd97706), 0);   // Import (ambre)
-      lv_label_set_text(label_flow_state_ep, "Import");
+      int import_w = (int)(grid_w + 0.5f);
+      uint32_t bg_color;
+      const char *label_text;
+      if (import_w <= 1000) {
+        bg_color = 0x84cc16;  /* vert-jaune (faible) */
+        label_text = "Import 1k";
+      } else if (import_w <= 1500) {
+        bg_color = 0xeab308;  /* jaune */
+        label_text = "Import 1.5k";
+      } else if (import_w <= 2000) {
+        bg_color = 0xf59e0b;  /* ambre */
+        label_text = "Import 2k";
+      } else if (import_w <= 3000) {
+        bg_color = 0xd97706;  /* orange */
+        label_text = "Import 3k";
+      } else {
+        bg_color = 0xdc2626;  /* rouge (fort) */
+        label_text = "Import 3k+";
+      }
+      lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(bg_color), 0);
+      lv_label_set_text(label_flow_state_ep, label_text);
     } else if (grid_w < -FLOW_STATE_THRESHOLD_W) {
       lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0x0d9488), 0);   // Export (bleu-vert)
       lv_label_set_text(label_flow_state_ep, "Export");

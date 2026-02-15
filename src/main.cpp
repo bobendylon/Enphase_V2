@@ -2205,6 +2205,8 @@ void handleExportConfig() {
   doc[PREF_WIFI_PASS] = config_wifi_password;
   doc[PREF_MQTT_IP] = config_mqtt_ip;
   doc[PREF_MQTT_PORT] = config_mqtt_port;
+  doc[PREF_MQTT_USER] = config_mqtt_user;
+  doc[PREF_MQTT_PASS] = config_mqtt_pass;
   doc[PREF_TOPIC_PROD] = config_topic_prod;
   doc[PREF_TOPIC_CABANE] = config_topic_cabane;
   doc[PREF_TOPIC_CONSO] = config_topic_conso;

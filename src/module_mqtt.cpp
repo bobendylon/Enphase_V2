@@ -6,6 +6,8 @@
 // Constantes NVS (évite d'inclure config.h qui contient des définitions)
 #define PREF_MQTT_IP "mqtt_ip"
 #define PREF_MQTT_PORT "mqtt_port"
+#define PREF_MQTT_USER "mqtt_user"
+#define PREF_MQTT_PASS "mqtt_pass"
 #define PREF_TOPIC_PROD "topic_prod"
 #define PREF_TOPIC_CABANE "topic_cabane"
 #define PREF_TOPIC_CONSO "topic_conso"
@@ -24,12 +26,6 @@
 #define PREF_JSON_KEY_WATER1 "json_key_water1"
 #define PREF_JSON_KEY_WATER2 "json_key_water2"
 #define PREF_MSUNPV_IP "msunpv_ip"
-
-// Constantes depuis config.h (valeurs par défaut)
-// Note: MQTT_USER et MQTT_PASSWORD sont définis dans config.h
-// On les déclare en extern pour éviter d'inclure config.h
-extern const char* MQTT_USER;
-extern const char* MQTT_PASSWORD;
 
 // Déclarations externes pour logging
 extern void addLog(String message);
@@ -74,6 +70,8 @@ float consoJour = 0;
 
 String config_mqtt_ip;
 int config_mqtt_port;
+String config_mqtt_user;
+String config_mqtt_pass;
 String config_topic_prod;
 String config_topic_cabane;
 String config_topic_conso;
@@ -131,6 +129,10 @@ void mqtt_init(PubSubClient* client, WiFiClient* wifi) {
 
 // Reconnexion MQTT
 void mqtt_reconnect() {
+  // Enphase V2 : connexion optionnelle — si IP vide, ne pas tenter
+  if (config_mqtt_ip.length() == 0) {
+    return;
+  }
   if (WiFi.status() != WL_CONNECTED) {
     addLog("[MQTT] WiFi non connecté");
     return;
@@ -142,8 +144,8 @@ void mqtt_reconnect() {
     String clientId = "MSunPV-" + String(random(0xffff), HEX);
     
     bool connected = false;
-    if (strlen(MQTT_USER) > 0) {
-      connected = mqttClient->connect(clientId.c_str(), MQTT_USER, MQTT_PASSWORD);
+    if (config_mqtt_user.length() > 0) {
+      connected = mqttClient->connect(clientId.c_str(), config_mqtt_user.c_str(), config_mqtt_pass.c_str());
     } else {
       connected = mqttClient->connect(clientId.c_str());
     }
@@ -164,6 +166,8 @@ void mqtt_reconnect() {
 // Loop MQTT (à appeler dans loop())
 void mqtt_loop() {
   if (!mqttClient) return;
+  // Enphase V2 : connexion optionnelle — si IP vide, ne pas tenter
+  if (config_mqtt_ip.length() == 0) return;
   
   if (!mqttClient->connected()) {
     unsigned long now = millis();
@@ -180,6 +184,8 @@ void mqtt_loop() {
 void mqtt_loadConfig(Preferences* prefs) {
   config_mqtt_ip = prefs->getString(PREF_MQTT_IP, DEFAULT_MQTT_SERVER);
   config_mqtt_port = prefs->getInt(PREF_MQTT_PORT, DEFAULT_MQTT_PORT);
+  config_mqtt_user = prefs->getString(PREF_MQTT_USER, "");
+  config_mqtt_pass = prefs->getString(PREF_MQTT_PASS, "");
   config_topic_prod = prefs->getString(PREF_TOPIC_PROD, DEFAULT_TOPIC_SOLAR_PROD);
   config_topic_cabane = prefs->getString(PREF_TOPIC_CABANE, DEFAULT_TOPIC_SOLAR_CABANE);
   config_topic_conso = prefs->getString(PREF_TOPIC_CONSO, DEFAULT_TOPIC_HOME_CONSO);
@@ -196,16 +202,14 @@ void mqtt_loadConfig(Preferences* prefs) {
   // config_msunpv_ip est maintenant chargée par module_msunpv.cpp
   
   addLog("[MQTT] Configuration chargée depuis NVS");
-  addLogf("  Clés JSON - cabane: '%s', water1: '%s', water2: '%s'", 
-                config_json_key_cabane.c_str(), 
-                config_json_key_water1.c_str(), 
-                config_json_key_water2.c_str());
 }
 
 // Sauvegarde configuration dans NVS
 void mqtt_saveConfig(Preferences* prefs) {
   prefs->putString(PREF_MQTT_IP, config_mqtt_ip);
   prefs->putInt(PREF_MQTT_PORT, config_mqtt_port);
+  prefs->putString(PREF_MQTT_USER, config_mqtt_user);
+  prefs->putString(PREF_MQTT_PASS, config_mqtt_pass);
   prefs->putString(PREF_TOPIC_PROD, config_topic_prod);
   prefs->putString(PREF_TOPIC_CABANE, config_topic_cabane);
   prefs->putString(PREF_TOPIC_CONSO, config_topic_conso);
@@ -222,13 +226,9 @@ void mqtt_saveConfig(Preferences* prefs) {
   // config_msunpv_ip est maintenant sauvegardée par module_msunpv.cpp
   
   addLog("[MQTT] Configuration sauvegardée dans NVS");
-  addLogf("  Clés JSON sauvegardées - cabane: '%s', water1: '%s', water2: '%s'", 
-                config_json_key_cabane.c_str(), 
-                config_json_key_water1.c_str(), 
-                config_json_key_water2.c_str());
 }
 
-// Handler web - Page de configuration
+// Handler web - Page de configuration (Enphase V2 : broker uniquement)
 void mqtt_handleConfig(WebServer* server) {
   String html = R"(
 <!DOCTYPE html>
@@ -237,237 +237,73 @@ void mqtt_handleConfig(WebServer* server) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
-  <title>Configuration MQTT - MSunPV</title>
+  <title>Configuration MQTT - Enphase Monitor</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0c0a09;
-      color: #fff;
-      margin: 0;
-      padding: 20px;
-    }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    h1 {
-      color: #fbbf24;
-      border-bottom: 2px solid #fbbf24;
-      padding-bottom: 10px;
-    }
-    h2 {
-      color: #60a5fa;
-      margin-top: 30px;
-    }
-    .form-group {
-      margin-bottom: 20px;
-      background: #292524;
-      padding: 15px;
-      border-radius: 8px;
-    }
-    label {
-      display: block;
-      color: #9ca3af;
-      margin-bottom: 5px;
-      font-size: 0.9em;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      background: #1c1917;
-      border: 1px solid #374151;
-      color: #fff;
-      border-radius: 4px;
-      font-size: 1em;
-      box-sizing: border-box;
-    }
-    .value-display {
-      color: #22c55e;
-      font-size: 0.9em;
-      margin-top: 5px;
-      font-style: italic;
-    }
-    .btn {
-      background: #fbbf24;
-      color: #000;
-      border: none;
-      padding: 12px 30px;
-      font-size: 1.1em;
-      font-weight: bold;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-right: 10px;
-    }
-    .btn:hover {
-      background: #f59e0b;
-    }
-    .btn-secondary {
-      background: #374151;
-      color: #fff;
-    }
-    .btn-secondary:hover {
-      background: #4b5563;
-    }
-    .nav {
-      margin-top: 20px;
-      text-align: center;
-    }
-    .status {
-      background: #1c1917;
-      padding: 10px;
-      border-radius: 6px;
-      margin-bottom: 20px;
-    }
-    @media (max-width: 768px) {
-      body { padding: 12px; }
-      h1 { font-size: 1.5em; }
-      h2 { font-size: 1.2em; margin-top: 20px; }
-      .form-group { padding: 12px; }
-      .btn { width: 100%; margin: 5px 0; padding: 14px; min-height: 44px; }
-    }
-    @media (max-width: 480px) {
-      body { padding: 10px; }
-      h1 { font-size: 1.3em; }
-      input { padding: 12px; font-size: 16px; }
-      .btn { font-size: 1em; }
-    }
+    body { font-family: Arial, sans-serif; background: #0c0a09; color: #fff; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    h1 { color: #fbbf24; border-bottom: 2px solid #fbbf24; padding-bottom: 10px; }
+    h2 { color: #60a5fa; margin-top: 24px; }
+    .form-group { margin-bottom: 20px; background: #292524; padding: 15px; border-radius: 8px; }
+    label { display: block; color: #9ca3af; margin-bottom: 5px; font-size: 0.9em; }
+    input { width: 100%; padding: 10px; background: #1c1917; border: 1px solid #374151; color: #fff; border-radius: 4px; font-size: 1em; box-sizing: border-box; }
+    .hint { color: #9ca3af; font-size: 0.85em; margin-top: 5px; }
+    .btn { background: #fbbf24; color: #000; border: none; padding: 12px 30px; font-size: 1.1em; font-weight: bold; border-radius: 6px; cursor: pointer; margin-right: 10px; }
+    .btn:hover { background: #f59e0b; }
+    .btn-secondary { background: #374151; color: #fff; }
+    .btn-secondary:hover { background: #4b5563; }
+    .nav { margin-top: 20px; text-align: center; }
+    .status { background: #1c1917; padding: 12px; border-radius: 6px; margin-bottom: 20px; }
+    .status.connected { border-left: 4px solid #22c55e; }
+    .status.disconnected { border-left: 4px solid #ef4444; }
+    @media (max-width: 480px) { body { padding: 10px; } .btn { width: 100%; margin: 5px 0; } }
   </style>
   <script>
-    function updateValues() {
-      fetch('/data')
-        .then(r => r.json())
-        .then(d => {
-          document.getElementById('val_prod').innerText = 'Valeur: ' + d.solarProd.toFixed(1) + ' W';
-          document.getElementById('val_cabane').innerText = 'Valeur: ' + d.solarProdCabane.toFixed(1) + ' W';
-          document.getElementById('val_conso').innerText = 'Valeur: ' + d.homeConso.toFixed(1) + ' W';
-          document.getElementById('val_router').innerText = 'Valeur: ' + d.routerPower.toFixed(1) + ' W';
-          document.getElementById('val_water').innerText = 'Valeur: ' + d.waterTemp.toFixed(1) + ' °C';
-          document.getElementById('val_ext').innerText = 'Valeur: ' + d.tempExt.toFixed(1) + ' °C';
-          document.getElementById('val_salon').innerText = 'Valeur: ' + d.tempSalon.toFixed(1) + ' °C';
-          document.getElementById('val_jour').innerText = 'Valeur: ' + d.consoJour.toFixed(2) + ' kWh';
-          // val_presence_ben, val_presence_francine, val_presence_victor retirés (Enphase V2)
-        });
+    function updateStatus() {
+      fetch('/data').then(r => r.json()).then(d => {
+        var s = document.getElementById('mqttStatus');
+        s.className = 'status ' + (d.mqttConnected ? 'connected' : 'disconnected');
+        s.innerText = d.mqttConnected ? 'État: Connecté au broker' : 'État: Déconnecté';
+      });
     }
-    setInterval(updateValues, 2000);
-    window.onload = updateValues;
+    setInterval(updateStatus, 3000);
+    window.onload = updateStatus;
   </script>
 </head>
 <body>
   <div class="container">
-    <h1>⚙️ Configuration MQTT</h1>
-    
-    <div class="status">
-      Configuration actuelle chargée depuis NVS. Modifiez et sauvegardez pour mettre à jour.
-    </div>
-    
+    <h1>📡 Configuration MQTT</h1>
+    <div class="status" id="mqttStatus">État: Chargement...</div>
+    <p class="hint">Broker pour publication vers Home Assistant. Laisser IP vide pour désactiver MQTT.</p>
     <form method="POST" action="/saveMqtt">
-      <h2>📡 Broker MQTT</h2>
+      <h2>Broker</h2>
       <div class="form-group">
-        <label>IP Broker MQTT</label>
+        <label>IP ou hostname du broker</label>
         <input type="text" name="mqtt_ip" value=")";
   html += config_mqtt_ip;
-  html += R"(" required>
+  html += R"(" placeholder="192.168.1.82">
+        <div class="hint">Laisser vide pour ne pas se connecter</div>
       </div>
       <div class="form-group">
-        <label>Port MQTT</label>
+        <label>Port</label>
         <input type="number" name="mqtt_port" value=")";
   html += String(config_mqtt_port);
-  html += R"(" required>
-      </div>
-      
-      <h2>📊 Topics MQTT</h2>
-      <div class="form-group">
-        <label>Topic Production Shelly Principal</label>
-        <input type="text" name="topic_prod" value=")";
-  html += config_topic_prod;
-  html += R"(" required>
-        <div class="value-display" id="val_prod">-</div>
-      </div>
-      
-      <div class="form-group">
-        <label>Topic Production Cabane (Zigbee2MQTT)</label>
-        <input type="text" name="topic_cabane" value=")";
-  html += config_topic_cabane;
-  html += R"(" required>
-        <div class="value-display" id="val_cabane">-</div>
+  html += R"(" min="1" max="65535" required>
       </div>
       <div class="form-group">
-        <label>Clé JSON Production Cabane (laisser vide pour valeur simple)</label>
-        <input type="text" name="json_key_cabane" value=")";
-  html += config_json_key_cabane;
-  html += R"(" placeholder="power">
-        <div class="value-display" style="color: #9ca3af; font-size: 0.8em;">Ex: "power" - Laisser vide si le topic envoie une valeur numérique directe</div>
-      </div>
-      
-      <div class="form-group">
-        <label>Topic Consommation Maison</label>
-        <input type="text" name="topic_conso" value=")";
-  html += config_topic_conso;
-  html += R"(" required>
-        <div class="value-display" id="val_conso">-</div>
-      </div>
-      
-      <div class="form-group">
-        <label>Topic Routeur M'SunPV</label>
-        <input type="text" name="topic_router" value=")";
-  html += config_topic_router;
-  html += R"(" required>
-        <div class="value-display" id="val_router">-</div>
-      </div>
-      
-      <div class="form-group">
-        <label>Topic Température Cumulus (DS18B20 Tasmota)</label>
-        <input type="text" name="topic_water" value=")";
-  html += config_topic_water;
-  html += R"(" required>
-        <div class="value-display" id="val_water">-</div>
+        <label>Utilisateur (optionnel)</label>
+        <input type="text" name="mqtt_user" value=")";
+  html += config_mqtt_user;
+  html += R"(" placeholder="Laisser vide si pas d'auth">
       </div>
       <div class="form-group">
-        <label>Clé JSON Niveau 1 Température Eau (laisser vide pour valeur simple)</label>
-        <input type="text" name="json_key_water1" value=")";
-  html += config_json_key_water1;
-  html += R"(" placeholder="DS18B20-1">
-        <div class="value-display" style="color: #9ca3af; font-size: 0.8em;">Ex: "DS18B20-1" - Première clé JSON (niveau 1)</div>
+        <label>Mot de passe (optionnel)</label>
+        <input type="password" name="mqtt_pass" value=")";
+  html += config_mqtt_pass;
+  html += R"(" placeholder="Mot de passe">
       </div>
-      <div class="form-group">
-        <label>Clé JSON Niveau 2 Température Eau (laisser vide pour valeur simple)</label>
-        <input type="text" name="json_key_water2" value=")";
-  html += config_json_key_water2;
-  html += R"(" placeholder="Temperature">
-        <div class="value-display" style="color: #9ca3af; font-size: 0.8em;">Ex: "Temperature" - Deuxième clé JSON (niveau 2, dans l'objet niveau 1)</div>
-      </div>
-      
-      <div class="form-group">
-        <label>Topic Température Extérieure</label>
-        <input type="text" name="topic_ext" value=")";
-  html += config_topic_ext;
-  html += R"(" required>
-        <div class="value-display" id="val_ext">-</div>
-      </div>
-      
-      <div class="form-group">
-        <label>Topic Température Salon</label>
-        <input type="text" name="topic_salon" value=")";
-  html += config_topic_salon;
-  html += R"(" required>
-        <div class="value-display" id="val_salon">-</div>
-      </div>
-      
-      <div class="form-group">
-        <label>Topic Consommation Journalière</label>
-        <input type="text" name="topic_jour" value=")";
-  html += config_topic_jour;
-  html += R"(" required>
-        <div class="value-display" id="val_jour">-</div>
-      </div>
-      
-      <!-- Topics présence Ben, Francine, Victor retirés (Enphase V2) -->
-      <!-- Topic Alarme retiré (Enphase V2) -->
-      
       <button type="submit" class="btn">💾 Enregistrer et Redémarrer</button>
       <button type="button" class="btn btn-secondary" onclick="location.href='/'">❌ Annuler</button>
     </form>
-    
     <div class="nav">
       <a href="/" style="color: #fbbf24; text-decoration: none;">&larr; Retour au Dashboard</a>
     </div>
@@ -478,33 +314,16 @@ void mqtt_handleConfig(WebServer* server) {
   server->send(200, "text/html", html);
 }
 
-// Handler web - Sauvegarde configuration
+// Handler web - Sauvegarde configuration (Enphase V2 : broker uniquement)
 void mqtt_handleSaveConfig(WebServer* server) {
   if (server->method() == HTTP_POST) {
-    // Récupérer les valeurs
     config_mqtt_ip = server->arg("mqtt_ip");
+    config_mqtt_ip.trim();
     config_mqtt_port = server->arg("mqtt_port").toInt();
-    config_topic_prod = server->arg("topic_prod");
-    config_topic_cabane = server->arg("topic_cabane");
-    config_topic_conso = server->arg("topic_conso");
-    config_topic_router = server->arg("topic_router");
-    config_topic_water = server->arg("topic_water");
-    config_topic_ext = server->arg("topic_ext");
-    config_topic_salon = server->arg("topic_salon");
-    config_topic_jour = server->arg("topic_jour");
-    // config_topic_presence_* retirés (Enphase V2)
-    // config_topic_alarm retiré (Enphase V2)
-    
-    // Clés JSON configurables
-    config_json_key_cabane = server->arg("json_key_cabane");
-    config_json_key_water1 = server->arg("json_key_water1");
-    config_json_key_water2 = server->arg("json_key_water2");
-    
-    // Debug : afficher les valeurs reçues
-    addLog("[MQTT] Sauvegarde config - Clés JSON:");
-    addLogf("  json_key_cabane: '%s'", config_json_key_cabane.c_str());
-    addLogf("  json_key_water1: '%s'", config_json_key_water1.c_str());
-    addLogf("  json_key_water2: '%s'", config_json_key_water2.c_str());
+    if (config_mqtt_port <= 0) config_mqtt_port = 1883;
+    config_mqtt_user = server->arg("mqtt_user");
+    config_mqtt_user.trim();
+    config_mqtt_pass = server->arg("mqtt_pass");
     
     // Sauvegarder dans NVS
     extern Preferences preferences;

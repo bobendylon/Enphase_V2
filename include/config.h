@@ -50,6 +50,8 @@ const int MSUNPV_UPDATE_INTERVAL = 10000;       // 10 secondes
 // MQTT Broker
 #define PREF_MQTT_IP "mqtt_ip"
 #define PREF_MQTT_PORT "mqtt_port"
+#define PREF_MQTT_USER "mqtt_user"
+#define PREF_MQTT_PASS "mqtt_pass"
 
 // M'SunPV
 #define PREF_MSUNPV_IP "msunpv_ip"

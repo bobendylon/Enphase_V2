@@ -30,9 +30,11 @@ extern float consoJour;
 // presenceBen, presenceFrancine, presenceVictor retirés (Enphase V2)
 // alarmState retiré (Enphase V2)
 
-// Variables exposées (extern) - Configuration (pour compatibilité)
+// Variables exposées (extern) - Configuration broker
 extern String config_mqtt_ip;
 extern int config_mqtt_port;
+extern String config_mqtt_user;
+extern String config_mqtt_pass;
 extern String config_topic_prod;
 extern String config_topic_cabane;
 extern String config_topic_conso;

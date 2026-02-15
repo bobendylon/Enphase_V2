@@ -155,14 +155,32 @@ Modules exclus : `module_msunpv`, `module_sd`, `module_shelly`.
 
 ## 5. Prochaines étapes prévues
 
-1. **Publication Enphase vers Home Assistant**
-   - MQTT Discovery (auto-découverte des entités dans HA)
-   - Publier : prod, conso, prod/conso du jour, statut
+### 5.1 MQTT — priorité haute
 
-2. **Connexion MQTT optionnelle**
-   - Si broker non configuré → pas de connexion
-   - Simplifier la page config MQTT (broker uniquement : IP, port, user, pass)
+1. **Mise à jour de la page Config MQTT** (`/mqtt`, `mqtt_handleConfig` dans `module_mqtt.cpp`)
+   - La page affiche encore tous les champs d’entrée des anciens topics (prod, cabane, conso, router, water, ext, salon, jour, clés JSON).
+   - **Action :** simplifier la page pour ne garder que le broker :
+     - IP broker
+     - Port
+     - Utilisateur (actuellement dans `config.h` uniquement — à rendre configurable via NVS)
+     - Mot de passe (idem)
+   - Retirer les blocs "Topics MQTT" et "Clés JSON" — il n’y a plus de souscriptions entrantes.
 
-3. **Optionnel**
-   - Publication météo vers HA
-   - Publication des stats vers HA (à décider plus tard)
+2. **Connexion au broker**
+   - L’utilisateur ne parvient pas à se connecter au serveur MQTT.
+   - Vérifier : si le broker exige une authentification, `MQTT_USER` et `MQTT_PASSWORD` sont vides dans `config.h` et non configurables depuis le web.
+   - **Action :** ajouter les champs user/pass dans le formulaire MQTT, les stocker en NVS et les utiliser dans `mqtt_reconnect()`.
+
+3. **Connexion MQTT optionnelle**
+   - Si IP broker vide ou non configurée → ne pas tenter de connexion (éviter les erreurs inutiles).
+   - Actuellement `mqtt_reconnect()` tente toujours de se connecter.
+
+### 5.2 Publication Enphase vers Home Assistant
+
+- MQTT Discovery (auto-découverte des entités dans HA)
+- Publier : prod, conso, prod/conso du jour, statut
+
+### 5.3 Optionnel
+
+- Publication météo vers HA
+- Publication des stats vers HA (à décider plus tard)

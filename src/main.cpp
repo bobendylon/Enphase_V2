@@ -787,10 +787,8 @@ void loop() {
   // Serveur web
   server.handleClient();
   
-  // MQTT (V11.0 - Module) — désactivé en mode Enphase (activeScreenType == 1)
-  if (activeScreenType != 1) {
-    mqtt_loop();
-  }
+  // MQTT - Enphase V2 : toujours actif (publication HA, outil écoute)
+  mqtt_loop();
   
   // MSunPV retiré (Enphase V2)
   

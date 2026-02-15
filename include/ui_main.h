@@ -17,8 +17,7 @@ extern const lv_image_dsc_t wifi_cercle_vert;
 extern const lv_image_dsc_t wifi_barre_oblique;
 extern const lv_image_dsc_t mqtt_png;
 extern const lv_image_dsc_t mqtt_png_gris;
-extern const lv_image_dsc_t Shelly32;
-extern const lv_image_dsc_t Shelly32_gris;
+// Shelly32, Shelly32_gris retirés (Enphase V2 - module Shelly supprimé)
 extern const lv_image_dsc_t Enphase_logo;
 extern const lv_image_dsc_t Enphase_logo_gris;
 extern const lv_image_dsc_t roue_dentee;
@@ -89,7 +88,7 @@ lv_obj_t *img_cumulus_right = NULL;
 lv_obj_t *obj_led_indicator;
 lv_obj_t *led_wifi;
 lv_obj_t *led_mqtt;
-lv_obj_t *led_shelly;
+// led_shelly retiré (Enphase V2)
 lv_obj_t *led_enphase;
 lv_obj_t *led_settings;
 
@@ -116,7 +115,7 @@ lv_obj_t *label_ep_prod_jour_title = NULL;  // Titre ligne 1 carte droite (PRODU
 lv_obj_t *label_ep_prod_jour_unit = NULL;  // Unité ligne 1 (kWh / %)
 lv_obj_t *led_ep_wifi;
 lv_obj_t *led_ep_mqtt;
-lv_obj_t *led_ep_shelly;
+// led_ep_shelly retiré (Enphase V2)
 lv_obj_t *led_ep_enphase;
 lv_obj_t *led_ep_settings;
 lv_obj_t *label_ep_weather_city;
@@ -188,8 +187,7 @@ static lv_obj_t *label_settings_meteo = NULL;
 static lv_obj_t *label_settings_logs = NULL;
 // Onglet Infos : labels séparés pour couleurs (nom + valeur par ligne)
 static lv_obj_t *label_infos_ip_val = NULL;
-static lv_obj_t *label_infos_shelly1_val = NULL;
-static lv_obj_t *label_infos_shelly2_val = NULL;
+// label_infos_shelly1_val, label_infos_shelly2_val retirés (Enphase V2)
 static lv_obj_t *label_infos_enphase_val = NULL;
 // label_infos_msunpv_val retiré (Enphase V2)
 static lv_obj_t *label_infos_mqtt_val = NULL;
@@ -507,20 +505,17 @@ void createMainScreen() {
   lv_img_set_zoom(led_mqtt, 205);
   lv_obj_align(led_mqtt, LV_ALIGN_RIGHT_MID, -105, 0);
   
-  led_shelly = lv_img_create(header);
-  lv_img_set_src(led_shelly, &Shelly32_gris);
-  lv_img_set_zoom(led_shelly, 190);  // un peu plus petit que WiFi/MQTT (205) pour homogénéité visuelle
-  lv_obj_align(led_shelly, LV_ALIGN_RIGHT_MID, -75, 0);
+  // led_shelly retiré (Enphase V2)
   
   led_enphase = lv_img_create(header);
   lv_img_set_src(led_enphase, &Enphase_logo_gris);
-  lv_img_set_zoom(led_enphase, 190);  // idem
-  lv_obj_align(led_enphase, LV_ALIGN_RIGHT_MID, -45, 0);
+  lv_img_set_zoom(led_enphase, 190);
+  lv_obj_align(led_enphase, LV_ALIGN_RIGHT_MID, -75, 0);
   
   led_settings = lv_img_create(header);
   lv_img_set_src(led_settings, &roue_dentee);
   lv_img_set_zoom(led_settings, 205);
-  lv_obj_align(led_settings, LV_ALIGN_RIGHT_MID, -15, 0);
+  lv_obj_align(led_settings, LV_ALIGN_RIGHT_MID, -45, 0);
   lv_obj_add_flag(led_settings, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(led_settings, settings_open_clicked, LV_EVENT_CLICKED, NULL);
   
@@ -890,20 +885,17 @@ void createEnphaseScreen() {
   lv_img_set_zoom(led_ep_mqtt, 205);
   lv_obj_align(led_ep_mqtt, LV_ALIGN_RIGHT_MID, -105, 0);
   
-  led_ep_shelly = lv_img_create(header);
-  lv_img_set_src(led_ep_shelly, &Shelly32_gris);
-  lv_img_set_zoom(led_ep_shelly, 190);
-  lv_obj_align(led_ep_shelly, LV_ALIGN_RIGHT_MID, -75, 0);
+  // led_ep_shelly retiré (Enphase V2)
   
   led_ep_enphase = lv_img_create(header);
   lv_img_set_src(led_ep_enphase, &Enphase_logo_gris);
   lv_img_set_zoom(led_ep_enphase, 190);
-  lv_obj_align(led_ep_enphase, LV_ALIGN_RIGHT_MID, -45, 0);
+  lv_obj_align(led_ep_enphase, LV_ALIGN_RIGHT_MID, -75, 0);
   
   led_ep_settings = lv_img_create(header);
   lv_img_set_src(led_ep_settings, &roue_dentee);
   lv_img_set_zoom(led_ep_settings, 205);
-  lv_obj_align(led_ep_settings, LV_ALIGN_RIGHT_MID, -15, 0);
+  lv_obj_align(led_ep_settings, LV_ALIGN_RIGHT_MID, -45, 0);
   lv_obj_add_flag(led_ep_settings, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(led_ep_settings, settings_open_clicked, LV_EVENT_CLICKED, NULL);
   
@@ -1370,55 +1362,31 @@ void createSettingsScreen() {
   lv_obj_set_style_text_font(label_infos_ip_val, &lv_font_montserrat_16, 0);
   lv_obj_align(label_infos_ip_val, LV_ALIGN_TOP_RIGHT, 0, 0);
   
-  // Shelly 1 (bleu)
-  lv_obj_t *lbl_s1 = lv_label_create(card_infos);
-  lv_label_set_text(lbl_s1, "Shelly 1:");
-  lv_obj_set_style_text_color(lbl_s1, lv_color_hex(0x3b82f6), 0);
-  lv_obj_set_style_text_font(lbl_s1, &lv_font_montserrat_16, 0);
-  lv_obj_set_pos(lbl_s1, 0, 38);
-  label_infos_shelly1_val = lv_label_create(card_infos);
-  lv_label_set_text(label_infos_shelly1_val, "--");
-  lv_obj_set_style_text_color(label_infos_shelly1_val, lv_color_hex(0xffffff), 0);
-  lv_obj_set_style_text_font(label_infos_shelly1_val, &lv_font_montserrat_16, 0);
-  lv_obj_align(label_infos_shelly1_val, LV_ALIGN_TOP_RIGHT, 0, 38);
+  // Shelly 1 et 2 retirés (Enphase V2)
   
-  // Shelly 2 (bleu)
-  lv_obj_t *lbl_s2 = lv_label_create(card_infos);
-  lv_label_set_text(lbl_s2, "Shelly 2:");
-  lv_obj_set_style_text_color(lbl_s2, lv_color_hex(0x3b82f6), 0);
-  lv_obj_set_style_text_font(lbl_s2, &lv_font_montserrat_16, 0);
-  lv_obj_set_pos(lbl_s2, 0, 76);
-  label_infos_shelly2_val = lv_label_create(card_infos);
-  lv_label_set_text(label_infos_shelly2_val, "--");
-  lv_obj_set_style_text_color(label_infos_shelly2_val, lv_color_hex(0xffffff), 0);
-  lv_obj_set_style_text_font(label_infos_shelly2_val, &lv_font_montserrat_16, 0);
-  lv_obj_align(label_infos_shelly2_val, LV_ALIGN_TOP_RIGHT, 0, 76);
-  
-  // Enphase (orange = 0xf59e0b comme la date Enphase)
+  // Enphase (orange = 0xf59e0b)
   lv_obj_t *lbl_ep = lv_label_create(card_infos);
   lv_label_set_text(lbl_ep, "Enphase:");
   lv_obj_set_style_text_color(lbl_ep, lv_color_hex(0xf59e0b), 0);
   lv_obj_set_style_text_font(lbl_ep, &lv_font_montserrat_16, 0);
-  lv_obj_set_pos(lbl_ep, 0, 114);
+  lv_obj_set_pos(lbl_ep, 0, 38);
   label_infos_enphase_val = lv_label_create(card_infos);
   lv_label_set_text(label_infos_enphase_val, "--");
   lv_obj_set_style_text_color(label_infos_enphase_val, lv_color_hex(0xffffff), 0);
   lv_obj_set_style_text_font(label_infos_enphase_val, &lv_font_montserrat_16, 0);
-  lv_obj_align(label_infos_enphase_val, LV_ALIGN_TOP_RIGHT, 0, 114);
-  
-  // M'SunPV retiré (Enphase V2)
+  lv_obj_align(label_infos_enphase_val, LV_ALIGN_TOP_RIGHT, 0, 38);
   
   // MQTT (blanc comme IP)
   lv_obj_t *lbl_mq = lv_label_create(card_infos);
   lv_label_set_text(lbl_mq, "MQTT:");
   lv_obj_set_style_text_color(lbl_mq, lv_color_hex(0xffffff), 0);
   lv_obj_set_style_text_font(lbl_mq, &lv_font_montserrat_16, 0);
-  lv_obj_set_pos(lbl_mq, 0, 190);
+  lv_obj_set_pos(lbl_mq, 0, 76);
   label_infos_mqtt_val = lv_label_create(card_infos);
   lv_label_set_text(label_infos_mqtt_val, "--");
   lv_obj_set_style_text_color(label_infos_mqtt_val, lv_color_hex(0xffffff), 0);
   lv_obj_set_style_text_font(label_infos_mqtt_val, &lv_font_montserrat_16, 0);
-  lv_obj_align(label_infos_mqtt_val, LV_ALIGN_TOP_RIGHT, 0, 190);
+  lv_obj_align(label_infos_mqtt_val, LV_ALIGN_TOP_RIGHT, 0, 76);
   
   lv_obj_set_style_pad_all(tab_meteo, 10, 0);
   lv_obj_set_scrollbar_mode(tab_meteo, LV_SCROLLBAR_MODE_ON);
@@ -1513,8 +1481,6 @@ void updateSettingsUI() {
     ipAddress = WiFi.localIP().toString();
     rssi = (long)WiFi.RSSI();
   }
-  extern String config_shelly1_ip;
-  extern String config_shelly2_ip;
   extern String config_enphase_ip;
   extern String config_mqtt_ip;
   extern int config_mqtt_port;
@@ -1528,8 +1494,6 @@ void updateSettingsUI() {
   
   // Onglet Infos : valeurs par ligne (noms déjà colorés dans createSettingsScreen)
   if (label_infos_ip_val) lv_label_set_text(label_infos_ip_val, ipAddress.length() ? ipAddress.c_str() : "--");
-  if (label_infos_shelly1_val) lv_label_set_text(label_infos_shelly1_val, config_shelly1_ip.length() ? config_shelly1_ip.c_str() : "non configure");
-  if (label_infos_shelly2_val) lv_label_set_text(label_infos_shelly2_val, config_shelly2_ip.length() ? config_shelly2_ip.c_str() : "non configure");
   if (label_infos_enphase_val) lv_label_set_text(label_infos_enphase_val, config_enphase_ip.length() ? config_enphase_ip.c_str() : "non configure");
   if (label_infos_mqtt_val) {
     snprintf(buf, sizeof(buf), "%s:%d", config_mqtt_ip.length() ? config_mqtt_ip.c_str() : "--", config_mqtt_port);
@@ -1713,11 +1677,6 @@ void updateMainUI() {
   extern bool wifiConnected;
   extern bool mqttConnected;
   extern bool enphase_connected;
-  extern bool shelly1_connected;
-  extern bool shelly2_connected;
-  extern String config_shelly1_ip;
-  extern String config_shelly2_ip;
-  
   if (wifiConnected) {
     lv_img_set_src(led_wifi, &wifi_cercle_vert);
   } else {
@@ -1730,10 +1689,7 @@ void updateMainUI() {
     lv_img_set_src(led_mqtt, &mqtt_png_gris);
   }
   
-  if (led_shelly) {
-    bool shelly_ok = (config_shelly1_ip.length() == 0 || shelly1_connected) && (config_shelly2_ip.length() == 0 || shelly2_connected);
-    lv_img_set_src(led_shelly, shelly_ok ? &Shelly32 : &Shelly32_gris);
-  }
+  // led_shelly retiré (Enphase V2)
   
   if (led_enphase) {
     lv_img_set_src(led_enphase, enphase_connected ? &Enphase_logo : &Enphase_logo_gris);
@@ -1961,19 +1917,12 @@ void updateEnphaseUI() {
   // LEDs header
   extern bool wifiConnected;
   extern bool mqttConnected;
-  extern bool shelly1_connected;
-  extern bool shelly2_connected;
-  extern String config_shelly1_ip;
-  extern String config_shelly2_ip;
   
   lv_img_set_src(led_ep_wifi, wifiConnected ? &wifi_cercle_vert : &wifi_barre_oblique);
   lv_img_set_src(led_ep_mqtt, mqttConnected ? &mqtt_png : &mqtt_png_gris);
-  bool shelly_ok = (config_shelly1_ip.length() == 0 || shelly1_connected) && (config_shelly2_ip.length() == 0 || shelly2_connected);
-  lv_img_set_src(led_ep_shelly, shelly_ok ? &Shelly32 : &Shelly32_gris);
   lv_img_set_src(led_ep_enphase, enphase_connected ? &Enphase_logo : &Enphase_logo_gris);
-  // Mode Enphase : griser MQTT et Shelly (requêtes désactivées)
+  // Mode Enphase : griser MQTT
   if (led_ep_mqtt) lv_obj_set_style_img_opa(led_ep_mqtt, LV_OPA_40, 0);
-  if (led_ep_shelly) lv_obj_set_style_img_opa(led_ep_shelly, LV_OPA_40, 0);
 }
 
 // updateMSunPVUI retiré (Enphase V2)

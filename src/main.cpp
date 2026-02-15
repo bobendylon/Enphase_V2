@@ -21,10 +21,10 @@
 #include "ui_main.h"
 #include "module_weather.h"
 #include "module_mqtt.h"
-#include "module_shelly.h"
+// module_shelly retiré (Enphase V2)
 #include "module_enphase.h"
 #include "module_stats.h"
-#include "module_sd.h"
+// module_sd retiré (Enphase V2)
 #include "module_tempo.h"
 
 // VARIABLES GLOBALES
@@ -561,7 +561,7 @@ void setup() {
   stats_init();
   
   // SD Card (V13.0 - Module)
-  sd_init();
+  // sd_init() retiré (Enphase V2)
   
   // OTA
   setupOTA();
@@ -626,12 +626,7 @@ void setup() {
   server.on("/saveWeather", HTTP_POST, []() { weather_handleSaveConfig(&server); });
   server.on("/weatherAPI", []() { weather_handleAPI(&server); });  // V3.4 - API JSON météo
   server.on("/formattedDate", handleFormattedDate);  // V3.4 - Date formatée
-  // V11.0 - Shelly EM (Module)
-  server.on("/shellies", []() { shelly_handleWeb(&server); });
-  server.on("/shellyData", []() { shelly_handleData(&server); });
-  server.on("/getShellyConfig", []() { shelly_handleGetConfig(&server); });
-  server.on("/saveShellyConfig", HTTP_POST, []() { shelly_handleSaveConfig(&server); });
-  server.on("/saveShellyName", HTTP_POST, []() { shelly_handleSaveName(&server); });
+  // Shelly EM retiré (Enphase V2)
   // V12.0 - Enphase Envoy
   server.on("/enphase", []() { enphase_handleWeb(&server); });
   server.on("/enphaseData", []() { enphase_handleData(&server); });
@@ -644,7 +639,7 @@ void setup() {
   // V12.1 - Logs système
   server.on("/logs", handleLogs);
   // V13.0 - SD Card status
-  server.on("/sd", handleSDStatus);
+  // /sd retiré (Enphase V2)
   // V3.3 - AP WiFi routes
   server.on("/scan", handleWiFiScan);
   server.on("/connect", HTTP_POST, handleWiFiConnect);
@@ -773,7 +768,7 @@ void setupOTA() {
   
   // Météo initiale (V11.0 - Module)
   weather_init();
-  shelly_init();
+  // shelly_init() retiré (Enphase V2)
   // msunpv_init() retiré (Enphase V2)
   delay(2000);  // Attendre connexion WiFi stable
   if (wifiConnected) {
@@ -813,11 +808,8 @@ void loop() {
     weather_fetchForecast();
   }
   
-  // Shelly EM (V11.0 - Module) - Mise à jour toutes les 5 secondes — désactivé en mode Enphase
-  if (wifiConnected && activeScreenType != 1) {
-    shelly_update();
-  }
-  
+  // Shelly EM retiré (Enphase V2)
+
   // Enphase Envoy (V12.0 - V11.0 Module) - Mise à jour toutes les 10 secondes
   if (wifiConnected) {
     enphase_update();
@@ -887,7 +879,7 @@ void handleRoot() {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MSunPV Monitor V3.0</title>
+  <title>Enphase Monitor</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1449,7 +1441,7 @@ void handleRoot() {
           </svg>
         </div>
       </div>
-      <h1>☀️ MSunPV Monitor</h1>
+      <h1>☀️ Enphase Monitor</h1>
       <div class="header-time">
         <div class="temp-section">
           <div class="temp-label">🌡️ EXTÉRIEUR</div>
@@ -1546,12 +1538,10 @@ void handleRoot() {
     <div class="nav">
       <a href="/mqtt" class="btn">📡 Config MQTT</a>
       <a href="/wifi" class="btn">📶 Config WiFi</a>
-      <a href="/shellies" class="btn">⚡ Shelly EM</a>
       <a href="/enphase" class="btn">📡 Enphase Envoy</a>
-      <a href="/enphase-monitor" class="btn">☀️ ENPHASE MONITOR</a>
+      <a href="/enphase-monitor" class="btn">☀️ Enphase Monitor</a>
       <a href="/logs" class="btn" style="background:#0f0;color:#000;font-weight:bold">📊 Logs Système</a>
       <a href="/stats" class="btn">📊 Statistiques</a>
-      <a href="/sd" class="btn">💾 Carte SD</a>
       <a href="/info" class="btn">ℹ️ Infos Système</a>
       <a href="/update" class="btn">🔄 Mise à jour OTA</a>
     </div>
@@ -1984,7 +1974,7 @@ void handleEnphaseMonitorData() {
 void handleEnphaseMonitorHome() {
   if (wifiAPMode) { handleWiFiSetupPage(); return; }
   String html = R"(<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>
-<link rel='icon' type='image/svg+xml' href='/favicon.ico'><title>ENPHASE MONITOR</title>
+<link rel='icon' type='image/svg+xml' href='/favicon.ico'><title>Enphase Monitor</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;min-height:100vh;padding:12px}
@@ -2026,7 +2016,7 @@ body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-
 </style></head><body>
 <div class='container'>
 <div class='header'>
-  <span class='header-title'>☀️ ENPHASE MONITOR</span>
+  <span class='header-title'>☀️ Enphase Monitor</span>
   <span class='header-date' id='dateStr'>--</span>
   <span class='header-time' id='timeStr'>--:--:--</span>
   <div class='header-row'>
@@ -2102,7 +2092,7 @@ upd();setInterval(upd,5000);
 void handleEnphaseReglages() {
   if (wifiAPMode) { handleWiFiSetupPage(); return; }
   String html = R"(<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>
-<link rel='icon' type='image/svg+xml' href='/favicon.ico'><title>Réglages - ENPHASE MONITOR</title>
+<link rel='icon' type='image/svg+xml' href='/favicon.ico'><title>Réglages - Enphase Monitor</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;min-height:100vh;padding:20px}
@@ -2133,7 +2123,7 @@ h1{color:#fbbf24;margin-bottom:8px;font-size:1.6em}
 .modal-box button:hover{background:#fbbf24}
 .modal-box .err{color:#ef4444;font-size:0.9em;margin-top:8px}
 </style></head><body>)";
-  html += "<a href='/enphase-monitor' class='back'>&larr; Retour ENPHASE MONITOR</a>";
+  html += "<a href='/enphase-monitor' class='back'>&larr; Retour Enphase Monitor</a>";
   html += "<h1>⚙️ Réglages</h1>";
   html += "<p class='sub'>Retour vers l'accueil Enphase ci-dessus. Liens vers les configurations.</p>";
   html += "<div class='links'>";
@@ -2283,7 +2273,7 @@ void handleInfoWeb() {
   html += "@media (max-width: 768px){body{padding:12px}h1{font-size:1.5em}.card{padding:15px;margin:12px 0}.card h2{font-size:16px}.btn{width:100%;padding:12px 16px}}";
   html += "@media (max-width: 480px){body{padding:10px}h1{font-size:1.3em}.label{display:block;width:100%;margin-bottom:3px}.card button{width:100%;padding:14px}}</style></head><body>";
   String backUrl = (server.hasArg("from") && server.arg("from") == "enphase") ? "/enphase-monitor" : "/";
-  String backLabel = (server.hasArg("from") && server.arg("from") == "enphase") ? "Retour ENPHASE MONITOR" : "Retour";
+  String backLabel = (server.hasArg("from") && server.arg("from") == "enphase") ? "Retour Enphase Monitor" : "Retour";
   html += "<a href='" + backUrl + "' class='btn'>&larr; " + backLabel + "</a>";
   html += "<h1>ℹ️ Informations Système</h1>";
   
@@ -2300,14 +2290,7 @@ void handleInfoWeb() {
   
   // M'SunPV retiré (Enphase V2)
   
-  // Carte Shelly EM (V11.0)
-  html += "<div class='card'><h2>⚡ Shelly EM</h2>";
-  html += "<p style='margin-bottom:15px'><span class='label'>IP Shelly 1:</span> <span class='value'>" + (config_shelly1_ip.length() > 0 ? config_shelly1_ip : "Non configuré") + "</span></p>";
-  html += "<p style='margin-bottom:15px'><span class='label'>Nom:</span> <span class='value'>" + config_shelly1_name + "</span></p>";
-  html += "<p style='margin-bottom:15px'><span class='label'>IP Shelly 2:</span> <span class='value'>" + (config_shelly2_ip.length() > 0 ? config_shelly2_ip : "Non configuré") + "</span></p>";
-  html += "<p style='margin-bottom:15px'><span class='label'>Nom:</span> <span class='value'>" + config_shelly2_name + "</span></p>";
-  html += "<p style='margin-top:10px'><button onclick='configShelly()' class='btn' style='display:inline-block;cursor:pointer;border:none'>⚙️ Configurer IP</button></p></div>";
-  html += "\n";
+  // Shelly EM retiré (Enphase V2)
   
   // Carte Enphase Envoy (V12.0)
   html += "<div class='card'><h2>📡 Enphase Envoy</h2>";
@@ -2398,7 +2381,7 @@ void handleInfoWeb() {
   unsigned long mins = (uptimeSeconds % 3600) / 60;
   
   html += "<div class='card'><h2>💾 Sauvegarde / Restauration</h2>";
-  html += "<p style='margin-bottom:12px;color:#d1d5db'>Exporter toute la config (WiFi, MQTT, Shelly, Enphase, Météo, écran, date) pour la réimporter après un reset.</p>";
+  html += "<p style='margin-bottom:12px;color:#d1d5db'>Exporter toute la config (WiFi, MQTT, Enphase, Météo, écran, date) pour la réimporter après un reset.</p>";
   html += "<p style='margin-bottom:10px'><a href='/export' class='btn' style='display:inline-block;text-decoration:none;cursor:pointer;border:none'>📤 Exporter la config</a></p>";
   html += "<p style='margin-top:15px'><span class='label'>Importer:</span></p>";
   html += "<input type='file' id='importFile' accept='.json' style='margin:8px 0;color:#d1d5db'>";
@@ -2444,23 +2427,6 @@ function importConfig() {
 }
 </script>
 <script>
-function configShelly() {
-  let ip1 = prompt('IP Shelly EM 1:', ')" + config_shelly1_ip + R"(');
-  let ip2 = prompt('IP Shelly EM 2:', ')" + config_shelly2_ip + R"(');
-  
-  if (ip1 !== null && ip2 !== null) {
-    fetch('/saveShellyConfig', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: 'shelly1_ip=' + encodeURIComponent(ip1) + '&shelly2_ip=' + encodeURIComponent(ip2)
-    })
-    .then(() => {
-      alert('Configuration sauvegardée !');
-      location.reload();
-    });
-  }
-}
-
 function configEnphase() {
   let ip = prompt('IP Enphase Envoy:', ')" + config_enphase_ip + R"(');
   if (ip === null) return;
@@ -2627,18 +2593,7 @@ void handleExportConfig() {
   // PREF_MSUNPV_IP retiré (Enphase V2)
   doc[PREF_WEATHER_API] = weather_getApiKey();
   doc[PREF_WEATHER_CITY] = weather_getCity();
-  doc[PREF_SHELLY1_IP] = config_shelly1_ip;
-  doc[PREF_SHELLY1_NAME] = config_shelly1_name;
-  doc[PREF_SHELLY1_LABEL0] = config_shelly1_label0;
-  doc[PREF_SHELLY1_LABEL1] = config_shelly1_label1;
-  doc[PREF_SHELLY1_LABEL_ENERGY] = config_shelly1_label_energy;
-  doc[PREF_SHELLY1_LABEL_RETURNED] = config_shelly1_label_returned;
-  doc[PREF_SHELLY2_IP] = config_shelly2_ip;
-  doc[PREF_SHELLY2_NAME] = config_shelly2_name;
-  doc[PREF_SHELLY2_LABEL0] = config_shelly2_label0;
-  doc[PREF_SHELLY2_LABEL1] = config_shelly2_label1;
-  doc[PREF_SHELLY2_LABEL_ENERGY] = config_shelly2_label_energy;
-  doc[PREF_SHELLY2_LABEL_RETURNED] = config_shelly2_label_returned;
+  // PREF_SHELLY* retirés (Enphase V2)
   doc[PREF_ENPHASE_IP] = config_enphase_ip;
   doc[PREF_ENPHASE_USER] = config_enphase_user;
   doc[PREF_ENPHASE_PWD] = config_enphase_pwd;
@@ -3180,102 +3135,7 @@ void handleRestart() {
   ESP.restart();
 }
 
-// V13.0 - Page statut SD Card
-void handleSDStatus() {
-  String html = "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>SD Card - MSunPV V13.0</title>";
-  html += "<style>body{background:#0c0a09;color:#fff;font-family:Arial;padding:20px;margin:0}";
-  html += ".btn{background:#374151;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;display:inline-block;margin-bottom:20px;min-height:44px}";
-  html += ".btn:hover{background:#4b5563}";
-  html += "h1{color:#60a5fa;margin-bottom:20px}";
-  html += ".card{background:#292524;padding:20px;margin:15px 0;border-radius:12px;border:1px solid #374151}";
-  html += ".card h2{color:#fbbf24;margin:0 0 15px 0;font-size:18px}";
-  html += ".card p{margin:8px 0;color:#d1d5db}";
-  html += ".label{color:#9ca3af;display:inline-block;width:150px}";
-  html += ".value{color:#fff;font-weight:600}";
-  html += ".status-ok{color:#22c55e}";
-  html += ".status-error{color:#ef4444}";
-  html += "@media (max-width: 768px){body{padding:12px}h1{font-size:1.5em}.card{padding:15px;margin:12px 0}.btn{width:100%;padding:12px 16px}}</style></head><body>";
-  html += "<a href='/' class='btn'>&larr; Retour</a>";
-  html += "<h1>💾 Carte SD</h1>";
-  
-  // Statut SD
-  html += "<div class='card'><h2>📊 État de la Carte SD</h2>";
-  
-  if (sd_initialized) {
-    if (sd_available) {
-      html += "<p><span class='label'>État:</span> <span class='value status-ok'>✅ Carte détectée</span></p>";
-      
-      // Taille de la carte
-      uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-      html += "<p><span class='label'>Taille:</span> <span class='value'>" + String(cardSize) + " MB</span></p>";
-      
-      // Type de carte
-      uint8_t cardType = SD.cardType();
-      String typeStr = "Inconnu";
-      if (cardType == CARD_MMC) typeStr = "MMC";
-      else if (cardType == CARD_SD) typeStr = "SD";
-      else if (cardType == CARD_SDHC) typeStr = "SDHC/SDXC"; // SDHC inclut SDXC sur ESP32
-      else typeStr = "Type " + String(cardType);
-      html += "<p><span class='label'>Type:</span> <span class='value'>" + typeStr + "</span></p>";
-      
-      // Espace utilisé
-      uint64_t totalBytes = SD.totalBytes() / (1024 * 1024);
-      uint64_t usedBytes = SD.usedBytes() / (1024 * 1024);
-      html += "<p><span class='label'>Espace utilisé:</span> <span class='value'>" + String(usedBytes) + " / " + String(totalBytes) + " MB</span></p>";
-      
-    } else {
-      html += "<p><span class='label'>État:</span> <span class='value status-error'>❌ Carte non détectée</span></p>";
-      html += "<p><span class='label'>Erreur:</span> <span class='value status-error'>" + sd_last_error + "</span></p>";
-    }
-  } else {
-    html += "<p><span class='label'>État:</span> <span class='value status-error'>⚠️ Non initialisée</span></p>";
-  }
-  
-  html += "</div>";
-  
-  // Instructions
-  html += "<div class='card'><h2>📝 Instructions</h2>";
-  html += "<p><strong>Où trouver le slot SD :</strong></p>";
-  html += "<ul style='color:#d1d5db;line-height:1.8'>";
-  html += "<li>Le slot SD est généralement situé <strong>sur le côté</strong> de la carte ESP32-S3</li>";
-  html += "<li>Ou <strong>à l'arrière</strong> de la carte écran</li>";
-  html += "<li>Cherchez un petit connecteur rectangulaire avec un symbole SD</li>";
-  html += "<li>Insérez la carte SD (format microSD ou SD selon votre modèle)</li>";
-  html += "</ul>";
-  html += "<p style='margin-top:15px'><strong>Pins utilisés :</strong></p>";
-  html += "<ul style='color:#d1d5db;line-height:1.8'>";
-  html += "<li>CS: Pin 2</li>";
-  html += "<li>MOSI: Pin 1</li>";
-  html += "<li>MISO: Pin 40</li>";
-  html += "<li>SCK: Pin 41</li>";
-  html += "</ul>";
-  html += "<p style='margin-top:15px;color:#fbbf24'><strong>⚠️ Important :</strong> Si la carte n'est pas détectée, vérifiez les pins dans config.h</p>";
-  html += "</div>";
-  
-  // Fichiers stats
-  if (sd_available) {
-    html += "<div class='card'><h2>📁 Fichiers Statistiques</h2>";
-    
-    String dates[50];
-    int count = 0;
-    if (sd_getStatsDates(dates, 50)) {
-      html += "<p style='color:#d1d5db'>Fichiers trouvés dans /stats/ :</p>";
-      html += "<ul style='color:#d1d5db;line-height:1.8'>";
-      for (int i = 0; i < 50 && dates[i].length() > 0; i++) {
-        html += "<li>" + dates[i] + ".csv</li>";
-        count++;
-      }
-      html += "</ul>";
-      html += "<p><span class='label'>Total:</span> <span class='value'>" + String(count) + " fichiers</span></p>";
-    } else {
-      html += "<p style='color:#9ca3af'>Aucun fichier statistique trouvé</p>";
-    }
-    html += "</div>";
-  }
-  
-  html += "</body></html>";
-  server.send(200, "text/html", html);
-}
+// handleSDStatus retiré (Enphase V2 - module SD supprimé)
 
 // PREFERENCES (NVS) - V3.2
 void loadPreferences() {
@@ -3293,8 +3153,7 @@ void loadPreferences() {
   // Météo (V11.0 - Module)
   weather_loadConfig(&preferences);
   
-  // Shelly EM (V11.0 - Module)
-  shelly_loadConfig(&preferences);
+  // Shelly EM retiré (Enphase V2)
   
   // Enphase Envoy (V12.0 - V11.0 Module)
   enphase_loadConfig(&preferences);
@@ -3339,8 +3198,7 @@ void savePreferences() {
   // Météo (V11.0 - Module)
   weather_saveConfig(&preferences);
   
-  // Shelly EM (V11.0 - Module)
-  shelly_saveConfig(&preferences);
+  // Shelly EM retiré (Enphase V2)
   
   // Enphase Envoy (V12.0 - V11.0 Module)
   enphase_saveConfig(&preferences);
@@ -3505,7 +3363,7 @@ void handleWifiConfig() {
       <button type="submit" class="btn">💾 Enregistrer et Redémarrer</button>
       <button type="button" class="btn btn-secondary" onclick="location.href=')";
   String wifiBackUrl = (server.hasArg("from") && server.arg("from") == "enphase") ? "/enphase-monitor" : "/";
-  String wifiBackLabel = (server.hasArg("from") && server.arg("from") == "enphase") ? "Retour ENPHASE MONITOR" : "Retour au Dashboard";
+  String wifiBackLabel = (server.hasArg("from") && server.arg("from") == "enphase") ? "Retour Enphase Monitor" : "Retour au Dashboard";
   html += wifiBackUrl;
   html += R"('">❌ Annuler</button>
     </form>

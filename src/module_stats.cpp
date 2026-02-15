@@ -1,7 +1,7 @@
 // MODULE STATS - Implémentation
 
 #include "module_stats.h"
-#include "module_sd.h"
+// module_sd retiré (Enphase V2)
 #include <WiFi.h>
 #include <WebServer.h>
 #include <time.h>
@@ -12,8 +12,7 @@ float histoConso[24] = {0};
 
 // Variables internes (static)
 static int currentHour = -1;
-static unsigned long lastHistoSave = 0;
-static String lastSavedDate = "";
+// lastSavedDate retiré (module SD supprimé)
 
 // Déclarations externes
 extern float solarProd;   // Production solaire (W)
@@ -45,27 +44,7 @@ void stats_update() {
     histoConso[hour] = homeConso;
     addLogf("[STATS] H%02d: Prod=%.0fW Conso=%.0fW", hour, solarProd, homeConso);
     
-    // Sauvegarder sur SD si disponible (toutes les heures)
-    if (sd_isAvailable()) {
-      // Formater la date YYYY-MM-DD
-      char dateStr[11];
-      sprintf(dateStr, "%04d-%02d-%02d", 
-              timeinfo->tm_year + 1900, 
-              timeinfo->tm_mon + 1, 
-              timeinfo->tm_mday);
-      String date = String(dateStr);
-      
-      // Sauvegarder seulement si la date a changé (nouveau jour)
-      if (date != lastSavedDate) {
-        if (sd_saveStatsDaily(date, histoProd, histoConso)) {
-          lastSavedDate = date;
-          addLogf("[STATS] Sauvegarde SD réussie: %s", date.c_str());
-        }
-      } else {
-        // Mettre à jour le fichier du jour en cours
-        sd_saveStatsDaily(date, histoProd, histoConso);
-      }
-    }
+    // Sauvegarde SD retirée (Enphase V2)
   }
 }
 
@@ -234,11 +213,8 @@ String stats_getCurrentDate() {
 // ============================================
 
 bool stats_loadFromSD(String date) {
-  if (!sd_isAvailable()) {
-    return false;
-  }
-  
-  return sd_loadStatsDaily(date, histoProd, histoConso);
+  (void)date;
+  return false;  // Module SD retiré (Enphase V2)
 }
 
 // ============================================

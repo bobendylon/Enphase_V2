@@ -27,9 +27,7 @@ extern float waterTemp;
 extern float tempExt;
 extern float tempSalon;
 extern float consoJour;
-extern bool presenceBen;
-extern bool presenceFrancine;
-extern bool presenceVictor;
+// presenceBen, presenceFrancine, presenceVictor retirés (Enphase V2)
 // alarmState retiré (Enphase V2)
 
 // Variables exposées (extern) - Configuration (pour compatibilité)
@@ -43,10 +41,7 @@ extern String config_topic_water;
 extern String config_topic_ext;
 extern String config_topic_salon;
 extern String config_topic_jour;
-extern String config_topic_presence_ben;
-extern String config_topic_presence_francine;
-extern bool config_victor_enabled;
-extern String config_topic_presence_victor;
+// config_topic_presence_*, config_victor_enabled retirés (Enphase V2)
 // config_topic_alarm, config_topic_alarm_command retirés (Enphase V2)
 extern String config_json_key_cabane;
 extern String config_json_key_water1;

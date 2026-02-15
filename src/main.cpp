@@ -871,6 +871,10 @@ void handleRoot() {
     handleWiFiSetupPage();
     return;
   }
+  // Enphase V2 : redirection vers la page Enphase Monitor
+  server.sendHeader("Location", "/enphase-monitor");
+  server.send(302, "text/plain", "");
+  return;
   
   String html = R"rawliteral(
 <!DOCTYPE html>
@@ -1529,10 +1533,7 @@ void handleData() {
   json += "\"consoJour\":" + String(consoJour, 2) + ",";
   json += "\"tempExt\":" + String(tempExt, 1) + ",";
   json += "\"tempSalon\":" + String(tempSalon, 1) + ",";
-  json += "\"presenceBen\":" + String(presenceBen ? "true" : "false") + ",";
-  json += "\"presenceFrancine\":" + String(presenceFrancine ? "true" : "false") + ",";
-  json += "\"victorEnabled\":" + String(config_victor_enabled ? "true" : "false") + ",";
-  json += "\"presenceVictor\":" + String(presenceVictor ? "true" : "false") + ",";
+  // presenceBen, presenceFrancine, presenceVictor retirés (Enphase V2)
   // alarmState retiré (Enphase V2)
   json += "\"ledGreen\":" + String(ledLockedGreen ? "true" : "false") + ",";
   json += "\"wifiConnected\":" + String(wifiConnected ? "true" : "false") + ",";
@@ -2212,10 +2213,7 @@ void handleExportConfig() {
   doc[PREF_TOPIC_EXT] = config_topic_ext;
   doc[PREF_TOPIC_SALON] = config_topic_salon;
   doc[PREF_TOPIC_JOUR] = config_topic_jour;
-  doc[PREF_TOPIC_PRESENCE_BEN] = config_topic_presence_ben;
-  doc[PREF_TOPIC_PRESENCE_FRANCINE] = config_topic_presence_francine;
-  doc[PREF_VICTOR_ENABLED] = config_victor_enabled ? "1" : "0";
-  doc[PREF_TOPIC_PRESENCE_VICTOR] = config_topic_presence_victor;
+  // PREF_TOPIC_PRESENCE_* retirés (Enphase V2)
   // PREF_TOPIC_ALARM retirés (Enphase V2)
   doc[PREF_JSON_KEY_CABANE] = config_json_key_cabane;
   doc[PREF_JSON_KEY_WATER1] = config_json_key_water1;

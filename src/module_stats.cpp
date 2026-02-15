@@ -1,6 +1,7 @@
 // MODULE STATS - Implémentation
 
 #include "module_stats.h"
+#include "module_enphase.h"
 // module_sd retiré (Enphase V2)
 #include <WiFi.h>
 #include <WebServer.h>
@@ -14,9 +15,7 @@ float histoConso[24] = {0};
 static int currentHour = -1;
 // lastSavedDate retiré (module SD supprimé)
 
-// Déclarations externes
-extern float solarProd;   // Production solaire (W)
-extern float homeConso;   // Consommation (W)
+// Enphase V2 : données depuis module_enphase (enphase_pact_prod, enphase_pact_conso)
 extern void addLog(String message);
 extern void addLogf(const char* format, ...);
 
@@ -40,9 +39,9 @@ void stats_update() {
   
   if (hour != currentHour) {
     currentHour = hour;
-    histoProd[hour] = solarProd;
-    histoConso[hour] = homeConso;
-    addLogf("[STATS] H%02d: Prod=%.0fW Conso=%.0fW", hour, solarProd, homeConso);
+    histoProd[hour] = enphase_pact_prod;
+    histoConso[hour] = enphase_pact_conso;
+    addLogf("[STATS] H%02d: Prod=%.0fW Conso=%.0fW", hour, enphase_pact_prod, enphase_pact_conso);
     
     // Sauvegarde SD retirée (Enphase V2)
   }

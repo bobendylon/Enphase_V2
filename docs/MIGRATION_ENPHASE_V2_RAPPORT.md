@@ -2,7 +2,7 @@
 
 **Projet :** Enphase_V2  
 **Source :** MSunPV_Monitor_V11_multi  
-**Dernière mise à jour :** Février 2025
+**Dernière mise à jour :** 15 février 2025
 
 ---
 
@@ -51,11 +51,36 @@ Transformer le moniteur MSunPV multi-écrans en un affichage unique Enphase :
 | Dépendances dans Stats | `module_stats.cpp` | Suppression des appels `sd_isAvailable()`, `sd_saveStatsDaily()`, `sd_loadStatsDaily()` ; `stats_loadFromSD()` retourne toujours `false` |
 | Variable | `module_stats.cpp` | Suppression de `static String lastSavedDate` |
 
-### 2.5 Intégration Home Assistant (prévue, non implémentée)
+### 2.5 Module Alarme retiré
 
-- Suppression des souscriptions MQTT entrantes
-- Suppression du module Alarme
-- Publication des données Enphase vers HA (MQTT Discovery recommandé)
+| Modification | Fichiers | Détail |
+|--------------|----------|--------|
+| Route et handler | `main.cpp` | Suppression `/alarm/set`, `handleAlarmSet()` |
+| JSON /data | `main.cpp` | Suppression `alarmState` |
+| Export config | `main.cpp` | Suppression `PREF_TOPIC_ALARM`, `PREF_TOPIC_ALARM_COMMAND` |
+| HTML/CSS/JS page principale | `main.cpp` | Suppression bloc alarme (icône, dropdown, boutons) |
+| Module MQTT | `module_mqtt.cpp` | Suppression `alarmState`, topics alarme, subscribe, parse, load/save, formulaire config |
+
+### 2.6 Module MQTT – suppression des entrées
+
+| Modification | Fichiers | Détail |
+|--------------|----------|--------|
+| Présences (Ben, Francine, Victor) | `module_mqtt.cpp/h`, `main.cpp` | Suppression variables, parse, subscribe, load/save, formulaire config ; suppression du JSON /data et de l’export |
+| Souscriptions MQTT | `module_mqtt.cpp` | Suppression de toutes les `subscribe()` (prod, cabane, conso, water, temp, etc.) |
+| Parsing entrant | `module_mqtt.cpp` | `parseMqttMessage()` vidé ; plus de mise à jour des variables depuis les topics |
+| Icône MQTT | Conservée | Gris/coloré selon l’état de connexion au broker |
+
+### 2.7 Page d’accueil et données
+
+| Modification | Fichiers | Détail |
+|--------------|----------|--------|
+| Redirection `/` | `main.cpp` | Redirection 302 vers `/enphase-monitor` |
+| Titre page | `main.cpp` | « Enphase Monitor » (avec emoji ☀️) sur page principale et Enphase Monitor |
+| Stats | `module_stats.cpp` | Utilisation de `enphase_pact_prod` et `enphase_pact_conso` (module_enphase) à la place de `solarProd` et `homeConso` (MQTT) |
+
+### 2.8 Intégration Home Assistant (prévue, non implémentée)
+
+- Publication des données Enphase vers HA (MQTT Discovery)
 - Connexion MQTT optionnelle
 - Météo vers HA : optionnelle
 - Stats vers HA : non pour l’instant
@@ -130,12 +155,14 @@ Modules exclus : `module_msunpv`, `module_sd`, `module_shelly`.
 
 ## 5. Prochaines étapes prévues
 
-1. **Intégration Home Assistant**
-   - Supprimer les souscriptions MQTT entrantes
-   - Supprimer le module Alarme
-   - Implémenter la publication Enphase vers HA (MQTT Discovery)
-   - Connexion MQTT optionnelle
+1. **Publication Enphase vers Home Assistant**
+   - MQTT Discovery (auto-découverte des entités dans HA)
+   - Publier : prod, conso, prod/conso du jour, statut
 
-2. **Optionnel**
+2. **Connexion MQTT optionnelle**
+   - Si broker non configuré → pas de connexion
+   - Simplifier la page config MQTT (broker uniquement : IP, port, user, pass)
+
+3. **Optionnel**
    - Publication météo vers HA
    - Publication des stats vers HA (à décider plus tard)

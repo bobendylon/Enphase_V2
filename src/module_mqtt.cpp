@@ -69,9 +69,7 @@ float waterTemp = 48;
 float tempExt = 0;
 float tempSalon = 0;
 float consoJour = 0;
-bool presenceBen = false;
-bool presenceFrancine = false;
-bool presenceVictor = false;
+// presenceBen, presenceFrancine, presenceVictor retirés (Enphase V2)
 // alarmState retiré (Enphase V2)
 
 String config_mqtt_ip;
@@ -84,10 +82,7 @@ String config_topic_water;
 String config_topic_ext;
 String config_topic_salon;
 String config_topic_jour;
-String config_topic_presence_ben;
-String config_topic_presence_francine;
-bool config_victor_enabled = false;
-String config_topic_presence_victor;
+// config_topic_presence_*, config_victor_enabled retirés (Enphase V2)
 // config_topic_alarm, config_topic_alarm_command retirés (Enphase V2)
 String config_json_key_cabane;
 String config_json_key_water1;
@@ -101,127 +96,13 @@ static unsigned long lastMqttAttempt = 0;
 
 // Fonction privée pour parser les messages MQTT
 static void parseMqttMessage(String topic, String message) {
-  // V10.0 - Flag des données MQTT reçues (pour débloquer startup LED)
+  (void)topic;
+  (void)message;
+  // Enphase V2 : plus de données MQTT entrantes, uniquement publication vers HA
   if (!mqttDataReceived) {
     mqttDataReceived = true;
-    addLog("[V10.0] Premières données MQTT reçues");
+    addLog("[MQTT] Connexion établie (mode publication uniquement)");
   }
-  
-  // V3.2 - Production Shelly principal (topic configurable)
-  if (topic == config_topic_prod) {
-    solarProdMain = message.toFloat();
-    solarProd = solarProdMain + solarProdCabane;  // Calcul total
-    addLogf("[V2.0] Production Main: %.1f W | Cabane: %.1f W | TOTAL: %.1f W", 
-                  solarProdMain, solarProdCabane, solarProd);
-  }
-  // V3.2 - Production Cabane (JSON Zigbee2MQTT, topic configurable)
-  else if (topic == config_topic_cabane) {
-    // Si clé JSON configurée, parser JSON, sinon traiter comme valeur simple
-    if (config_json_key_cabane.length() > 0) {
-      addLogf("[MQTT] Parsing JSON cabane - Clé: '%s', Message: %s", 
-                    config_json_key_cabane.c_str(), message.c_str());
-      StaticJsonDocument<2048> doc;  // Buffer 2048 pour Zigbee2MQTT
-      DeserializationError error = deserializeJson(doc, message);
-      if (!error) {
-        if (doc.containsKey(config_json_key_cabane.c_str())) {
-          solarProdCabane = doc[config_json_key_cabane.c_str()].as<float>();
-          solarProd = solarProdMain + solarProdCabane;  // Calcul total
-          addLogf("[V2.0] Production Cabane: %.1f W | Main: %.1f W | TOTAL: %.1f W", 
-                        solarProdCabane, solarProdMain, solarProd);
-        } else {
-          addLogf("[MQTT] Clé JSON '%s' non trouvée dans le document", config_json_key_cabane.c_str());
-          String keys = "[MQTT] Clés disponibles: ";
-          for (JsonPair kv : doc.as<JsonObject>()) {
-            keys += String("'") + kv.key().c_str() + "' ";
-          }
-          addLog(keys);
-        }
-      } else {
-        addLogf("[V2.0] Erreur parse JSON cabane: %s", error.c_str());
-        addLogf("[MQTT] Message reçu: %s", message.c_str());
-      }
-    } else {
-      // Pas de clé JSON configurée, traiter comme valeur simple
-      solarProdCabane = message.toFloat();
-      solarProd = solarProdMain + solarProdCabane;  // Calcul total
-      addLogf("[V2.0] Production Cabane: %.1f W | Main: %.1f W | TOTAL: %.1f W", 
-                    solarProdCabane, solarProdMain, solarProd);
-    }
-  }
-  else if (topic == config_topic_conso) {
-    homeConso = message.toFloat();
-    addLogf("Consommation: %.1f W", homeConso);
-  }
-  else if (topic == config_topic_router) {
-    routerPower = message.toFloat();
-    addLogf("Routeur: %.1f W", routerPower);
-  }
-  else if (topic == config_topic_water) {
-    // Si clés JSON configurées, parser JSON, sinon traiter comme valeur simple
-    if (config_json_key_water1.length() > 0 && config_json_key_water2.length() > 0) {
-      addLogf("[MQTT] Parsing JSON water - Clé1: '%s', Clé2: '%s', Message: %s", 
-                    config_json_key_water1.c_str(), config_json_key_water2.c_str(), message.c_str());
-      StaticJsonDocument<300> doc;
-      DeserializationError error = deserializeJson(doc, message);
-      if (!error) {
-        if (doc.containsKey(config_json_key_water1.c_str())) {
-          JsonObject obj1 = doc[config_json_key_water1.c_str()];
-          if (obj1.containsKey(config_json_key_water2.c_str())) {
-            waterTemp = obj1[config_json_key_water2.c_str()].as<float>();
-            addLogf("Température cumulus: %.1f°C", waterTemp);
-          } else {
-            addLogf("[MQTT] Clé JSON niveau 2 '%s' non trouvée dans '%s'", 
-                          config_json_key_water2.c_str(), config_json_key_water1.c_str());
-            String keys = "[MQTT] Clés disponibles dans '";
-            keys += config_json_key_water1 + "': ";
-            for (JsonPair kv : obj1) {
-              keys += String("'") + kv.key().c_str() + "' ";
-            }
-            addLog(keys);
-          }
-        } else {
-          addLogf("[MQTT] Clé JSON niveau 1 '%s' non trouvée dans le document", config_json_key_water1.c_str());
-          String keys = "[MQTT] Clés disponibles: ";
-          for (JsonPair kv : doc.as<JsonObject>()) {
-            keys += String("'") + kv.key().c_str() + "' ";
-          }
-          addLog(keys);
-        }
-      } else {
-        addLogf("Erreur parse JSON water: %s", error.c_str());
-        addLogf("[MQTT] Message reçu: %s", message.c_str());
-      }
-    } else {
-      // Pas de clés JSON configurées, traiter comme valeur simple
-      waterTemp = message.toFloat();
-      addLogf("Température cumulus: %.1f°C", waterTemp);
-    }
-  }
-  else if (topic == config_topic_ext) {
-    tempExt = message.toFloat();
-    addLogf("Température extérieure: %.1f°C", tempExt);
-  }
-  else if (topic == config_topic_salon) {
-    tempSalon = message.toFloat();
-    addLogf("Température salon: %.1f°C", tempSalon);
-  }
-  else if (topic == config_topic_jour) {
-    consoJour = message.toFloat() / 1000.0;  // Conversion Wh → kWh
-    addLogf("Consommation jour: %.2f kWh", consoJour);
-  }
-  else if (topic == config_topic_presence_ben) {
-    presenceBen = (message.equals("home"));
-    addLogf("Présence Benoît: %s", presenceBen ? "home" : "not_home");
-  }
-  else if (topic == config_topic_presence_francine) {
-    presenceFrancine = (message.equals("home"));
-    addLogf("Présence Francine: %s", presenceFrancine ? "home" : "not_home");
-  }
-  else if (config_victor_enabled && topic == config_topic_presence_victor) {
-    presenceVictor = (message.equals("home"));
-    addLogf("Présence Victor: %s", presenceVictor ? "home" : "not_home");
-  }
-  // Topic alarme retiré (Enphase V2)
 }
 
 // Callback MQTT (static)
@@ -270,24 +151,9 @@ void mqtt_reconnect() {
     if (connected) {
       addLog("Connexion MQTT... OK!");
       mqttConnected = true;
+      mqttDataReceived = true;  // Pas de souscriptions, connexion = prêt
       
-      // Souscriptions (V3.2 - topics configurables)
-      mqttClient->subscribe(config_topic_prod.c_str());
-      mqttClient->subscribe(config_topic_cabane.c_str());
-      mqttClient->subscribe(config_topic_conso.c_str());
-      mqttClient->subscribe(config_topic_router.c_str());
-      mqttClient->subscribe(config_topic_water.c_str());
-      mqttClient->subscribe(config_topic_ext.c_str());
-      mqttClient->subscribe(config_topic_salon.c_str());
-      mqttClient->subscribe(config_topic_jour.c_str());
-      mqttClient->subscribe(config_topic_presence_ben.c_str());
-      mqttClient->subscribe(config_topic_presence_francine.c_str());
-      if (config_victor_enabled) {
-        mqttClient->subscribe(config_topic_presence_victor.c_str());
-      }
-      // config_topic_alarm retiré (Enphase V2)
-      
-      addLog("[V3.2] Souscriptions MQTT OK");
+      // Enphase V2 : plus de souscriptions entrantes, uniquement publication vers HA
     } else {
       addLogf("Connexion MQTT échec, code=%d", mqttClient->state());
       mqttConnected = false;
@@ -322,10 +188,7 @@ void mqtt_loadConfig(Preferences* prefs) {
   config_topic_ext = prefs->getString(PREF_TOPIC_EXT, DEFAULT_TOPIC_TEMP_EXT);
   config_topic_salon = prefs->getString(PREF_TOPIC_SALON, DEFAULT_TOPIC_TEMP_SALON);
   config_topic_jour = prefs->getString(PREF_TOPIC_JOUR, DEFAULT_TOPIC_CONSO_JOUR);
-  config_topic_presence_ben = prefs->getString(PREF_TOPIC_PRESENCE_BEN, DEFAULT_TOPIC_PRESENCE_BEN);
-  config_topic_presence_francine = prefs->getString(PREF_TOPIC_PRESENCE_FRANCINE, DEFAULT_TOPIC_PRESENCE_FRANCINE);
-  config_victor_enabled = (prefs->getString(PREF_VICTOR_ENABLED, "0") == "1");
-  config_topic_presence_victor = prefs->getString(PREF_TOPIC_PRESENCE_VICTOR, DEFAULT_TOPIC_PRESENCE_VICTOR);
+  // config_topic_presence_* retirés (Enphase V2)
   // config_topic_alarm retiré (Enphase V2)
   config_json_key_cabane = prefs->getString(PREF_JSON_KEY_CABANE, "");
   config_json_key_water1 = prefs->getString(PREF_JSON_KEY_WATER1, "");
@@ -351,10 +214,7 @@ void mqtt_saveConfig(Preferences* prefs) {
   prefs->putString(PREF_TOPIC_EXT, config_topic_ext);
   prefs->putString(PREF_TOPIC_SALON, config_topic_salon);
   prefs->putString(PREF_TOPIC_JOUR, config_topic_jour);
-  prefs->putString(PREF_TOPIC_PRESENCE_BEN, config_topic_presence_ben);
-  prefs->putString(PREF_TOPIC_PRESENCE_FRANCINE, config_topic_presence_francine);
-  prefs->putString(PREF_VICTOR_ENABLED, config_victor_enabled ? "1" : "0");
-  prefs->putString(PREF_TOPIC_PRESENCE_VICTOR, config_topic_presence_victor);
+  // config_topic_presence_* retirés (Enphase V2)
   // config_topic_alarm retiré (Enphase V2)
   prefs->putString(PREF_JSON_KEY_CABANE, config_json_key_cabane);
   prefs->putString(PREF_JSON_KEY_WATER1, config_json_key_water1);
@@ -485,10 +345,7 @@ void mqtt_handleConfig(WebServer* server) {
           document.getElementById('val_ext').innerText = 'Valeur: ' + d.tempExt.toFixed(1) + ' °C';
           document.getElementById('val_salon').innerText = 'Valeur: ' + d.tempSalon.toFixed(1) + ' °C';
           document.getElementById('val_jour').innerText = 'Valeur: ' + d.consoJour.toFixed(2) + ' kWh';
-          document.getElementById('val_presence_ben').innerText = 'Valeur: ' + (d.presenceBen ? 'home' : 'not_home');
-          document.getElementById('val_presence_francine').innerText = 'Valeur: ' + (d.presenceFrancine ? 'home' : 'not_home');
-          var vEl = document.getElementById('val_presence_victor');
-          if (vEl) vEl.innerText = d.victorEnabled ? ('Valeur: ' + (d.presenceVictor ? 'home' : 'not_home')) : '(Victor d\u00e9sactiv\u00e9)';
+          // val_presence_ben, val_presence_francine, val_presence_victor retirés (Enphase V2)
         });
     }
     setInterval(updateValues, 2000);
@@ -604,31 +461,7 @@ void mqtt_handleConfig(WebServer* server) {
         <div class="value-display" id="val_jour">-</div>
       </div>
       
-      <div class="form-group">
-        <label>Topic Présence Benoît</label>
-        <input type="text" name="topic_presence_ben" value=")";
-  html += config_topic_presence_ben;
-  html += R"(" required>
-        <div class="value-display" id="val_presence_ben">-</div>
-      </div>
-      
-      <div class="form-group">
-        <label>Topic Présence Francine</label>
-        <input type="text" name="topic_presence_francine" value=")";
-  html += config_topic_presence_francine;
-  html += R"(" required>
-        <div class="value-display" id="val_presence_francine">-</div>
-      </div>
-      
-      <div class="form-group">
-        <label><input type="checkbox" name="victor_enabled" value="1")";
-  if (config_victor_enabled) html += " checked";
-  html += "> Victor activ\u00e9 (\U0001F466)</label>\n        <input type=\"text\" name=\"topic_presence_victor\" value=\"";
-  html += config_topic_presence_victor;
-  html += R"(" placeholder="jeedom/presence/victor/state">
-        <div class="value-display" id="val_presence_victor">-</div>
-      </div>
-      
+      <!-- Topics présence Ben, Francine, Victor retirés (Enphase V2) -->
       <!-- Topic Alarme retiré (Enphase V2) -->
       
       <button type="submit" class="btn">💾 Enregistrer et Redémarrer</button>
@@ -659,10 +492,7 @@ void mqtt_handleSaveConfig(WebServer* server) {
     config_topic_ext = server->arg("topic_ext");
     config_topic_salon = server->arg("topic_salon");
     config_topic_jour = server->arg("topic_jour");
-    config_topic_presence_ben = server->arg("topic_presence_ben");
-    config_topic_presence_francine = server->arg("topic_presence_francine");
-    config_victor_enabled = server->hasArg("victor_enabled");
-    config_topic_presence_victor = server->arg("topic_presence_victor").length() ? server->arg("topic_presence_victor") : String(DEFAULT_TOPIC_PRESENCE_VICTOR);
+    // config_topic_presence_* retirés (Enphase V2)
     // config_topic_alarm retiré (Enphase V2)
     
     // Clés JSON configurables

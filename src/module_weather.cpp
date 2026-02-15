@@ -3979,8 +3979,11 @@ body {
   html += R"(</p>
   </div>
   
-  <div class='controls'>
-    <a href='/' class='btn'>← Retour Dashboard</a>
+  <div class='controls'>)";
+  String weatherBackUrl = (server->hasArg("from") && server->arg("from") == "enphase") ? "/enphase-monitor" : "/";
+  String weatherBackLabel = (server->hasArg("from") && server->arg("from") == "enphase") ? "Retour ENPHASE MONITOR" : "Retour Dashboard";
+  html += "<a href='" + weatherBackUrl + "' class='btn'>← " + weatherBackLabel + "</a>";
+  html += R"(
     <button class='btn btn-primary' onclick='refreshWeather()'>🔄 Actualiser</button>
   </div>
   

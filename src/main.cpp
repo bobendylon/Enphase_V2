@@ -216,6 +216,10 @@ void handleScreensWeb();
 void handleSaveScreens();
 void handleUnlockScreen();
 void handleSaveScreenLock();
+void handleEnphaseMonitorHome();
+void handleExportEnphaseConfig();
+void handleEnphaseMonitorData();
+void handleEnphaseReglages();
 // V14.0 - Format de date
 void handleSaveDateFormat();
 // Luminosité écran (page Info)
@@ -591,6 +595,7 @@ void setup() {
   server.on("/statsData", []() { stats_handleData(&server); });
   server.on("/info", handleInfoWeb);
   server.on("/export", handleExportConfig);
+  server.on("/exportEnphase", handleExportEnphaseConfig);
   server.on("/import", HTTP_POST, handleImportConfig);
   server.on("/settings", handleSettingsWeb);
   server.on("/restart", HTTP_POST, handleRestart);
@@ -636,6 +641,9 @@ void setup() {
   server.on("/enphaseStatus", []() { enphase_handleStatus(&server); });
   server.on("/enphaseTest", HTTP_POST, []() { enphase_handleTest(&server); });
   server.on("/saveEnphaseConfig", HTTP_POST, []() { enphase_handleSaveConfig(&server); });
+  server.on("/enphase-monitor", handleEnphaseMonitorHome);
+  server.on("/enphaseMonitorData", handleEnphaseMonitorData);
+  server.on("/enphase-reglages", handleEnphaseReglages);
   // V12.1 - Logs système
   server.on("/logs", handleLogs);
   // V13.0 - SD Card status
@@ -1553,6 +1561,7 @@ void handleRoot() {
       <a href="/msunpv" class="btn">🔌 Contrôle M'SunPV</a>
       <a href="/shellies" class="btn">⚡ Shelly EM</a>
       <a href="/enphase" class="btn">📡 Enphase Envoy</a>
+      <a href="/enphase-monitor" class="btn">☀️ ENPHASE MONITOR</a>
       <a href="/logs" class="btn" style="background:#0f0;color:#000;font-weight:bold">📊 Logs Système</a>
       <a href="/stats" class="btn">📊 Statistiques</a>
       <a href="/sd" class="btn">💾 Carte SD</a>
@@ -1951,6 +1960,253 @@ void handleFormattedDate() {
   server.send(200, "application/json", json);
 }
 
+// ========== ENPHASE MONITOR (page d'accueil web dédiée) ==========
+void handleEnphaseMonitorData() {
+  time_t now = time(NULL);
+  struct tm *t = localtime(&now);
+  char timeBuf[16];
+  sprintf(timeBuf, "%02d:%02d:%02d", t->tm_hour, t->tm_min, t->tm_sec);
+  char dateBuf[64];
+  const char* daysShort[] = {"Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."};
+  const char* months[] = {"Jan.", "Fev.", "Mar.", "Avr.", "Mai", "Juin", "Juil.", "Aout", "Sep.", "Oct.", "Nov.", "Dec."};
+  sprintf(dateBuf, "%s %02d %s %04d", daysShort[t->tm_wday], t->tm_mday, months[t->tm_mon], t->tm_year + 1900);
+
+  String j = "{";
+  j += "\"date\":\"" + String(dateBuf) + "\",";
+  j += "\"time\":\"" + String(timeBuf) + "\",";
+  j += "\"wifi\":" + String(wifiConnected ? "true" : "false") + ",";
+  j += "\"enphase_connected\":" + String(enphase_connected ? "true" : "false") + ",";
+  j += "\"weather_city\":\"" + weather_city + "\",";
+  j += "\"weather_temp\":" + String(weather_temp, 1) + ",";
+  j += "\"weather_code\":" + String(weather_code) + ",";
+  const char* dayNames[] = {"Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"};
+  j += "\"forecast\":[";
+  for (int i = 1; i <= 4; i++) {
+    if (i > 1) j += ",";
+    int wday = (t->tm_wday + i) % 7;
+    char d[2] = { weather_forecast_days[i], '\0' };
+    j += "{\"day\":\"" + String(d) + "\",\"day_name\":\"" + String(dayNames[wday]) + "\",\"temp\":" + String(weather_forecast_temps[i]) + ",\"code\":" + String(weather_forecast_codes[i]) + "}";
+  }
+  j += "],";
+  j += "\"pact_prod\":" + String(enphase_pact_prod, 0) + ",";
+  j += "\"pact_conso\":" + String(enphase_pact_conso, 0) + ",";
+  j += "\"pact_grid\":" + String(enphase_pact_grid, 0) + ",";
+  j += "\"energy_produced\":" + String(enphase_energy_produced / 1000.0f, 1) + ",";
+  j += "\"energy_imported\":" + String(enphase_energy_imported / 1000.0f, 1) + "}";
+  server.send(200, "application/json", j);
+}
+
+void handleEnphaseMonitorHome() {
+  if (wifiAPMode) { handleWiFiSetupPage(); return; }
+  String html = R"(<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>
+<link rel='icon' type='image/svg+xml' href='/favicon.ico'><title>ENPHASE MONITOR</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;min-height:100vh;padding:12px}
+.container{max-width:480px;margin:0 auto}
+.header{text-align:center;padding:12px 0;border-bottom:2px solid rgba(251,191,36,0.3);margin-bottom:16px}
+.header-title{font-size:1.4em;font-weight:700;color:#fbbf24;display:block;margin-bottom:4px}
+.header-date{font-size:0.9em;color:#d1d5db;display:block}
+.header-time{font-size:1.5em;font-weight:700;color:#fff;display:block;margin-top:4px}
+.header-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:10px;flex-wrap:wrap}
+.header-icons span{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;background:rgba(55,65,81,0.8)}
+.header-icons .ok{background:rgba(34,197,94,0.5);color:#22c55e}
+.header-icons .ko{opacity:0.5;color:#6b7280}
+.header a{color:#fbbf24;text-decoration:none;font-size:0.95em}
+.header a:hover{text-decoration:underline}
+.barre-meteo{display:flex;align-items:flex-start;gap:16px;padding:14px;background:rgba(41,37,36,0.9);border-radius:12px;border:1px solid rgba(251,191,36,0.25);margin-bottom:16px}
+.meteo-gauche{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.meteo-gauche .ville{font-weight:600;color:#fff;font-size:0.95em}
+.meteo-gauche .temp{font-size:1.5em;font-weight:700;color:#fbbf24}
+.meteo-gauche .ico{font-size:2.2em;line-height:1}
+.meteo-droite{display:flex;gap:10px;flex:1;justify-content:flex-end;flex-wrap:wrap}
+.meteo-droite .forecast-day{text-align:center;min-width:52px}
+.meteo-droite .forecast-day .d{font-size:0.75em;color:#9ca3af;margin-bottom:2px}
+.meteo-droite .forecast-day .t{font-size:0.95em;font-weight:600;color:#fff}
+.cartes-deux{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.cartes-deux .carte{flex:1;min-width:140px;padding:14px;border-radius:12px;border:1px solid rgba(251,191,36,0.25);background:rgba(41,37,36,0.9)}
+.cartes-deux .carte .ligne{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.cartes-deux .carte .ligne:last-child{margin-bottom:0}
+.cartes-deux .carte .label{font-size:0.8em;color:#9ca3af}
+.cartes-deux .carte .val{font-size:1.1em;font-weight:700}
+.cartes-deux .carte .val.prod{color:#fbbf24}
+.cartes-deux .carte .val.conso{color:#3b82f6}
+.flux{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 12px;padding:16px;background:rgba(41,37,36,0.9);border-radius:12px;border:1px solid rgba(251,191,36,0.25)}
+.flux-item{display:flex;flex-direction:column;align-items:center;gap:4px}
+.flux-item .ico{font-size:1.6em}
+.flux-item .val{font-size:0.9em;color:#9ca3af;font-weight:600}
+.flux-chevron{display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.flux-chevron svg{width:18px;height:18px;transition:fill .3s}
+@media(max-width:400px){.meteo-droite{justify-content:flex-start}.cartes-deux .carte{min-width:100%}}
+</style></head><body>
+<div class='container'>
+<div class='header'>
+  <span class='header-title'>☀️ ENPHASE MONITOR</span>
+  <span class='header-date' id='dateStr'>--</span>
+  <span class='header-time' id='timeStr'>--:--:--</span>
+  <div class='header-row'>
+    <span id='icoWifi' class='ko' title='WiFi'>📶</span>
+    <span id='icoEnphase' class='ko' title='Enphase'>⚡</span>
+    <a href='/enphase-reglages'>Réglages</a>
+  </div>
+</div>
+<div class='barre-meteo'>
+  <div class='meteo-gauche'>
+    <span class='ville' id='weatherCity'>--</span>
+    <span class='temp' id='weatherTemp'>--°C</span>
+    <span class='ico' id='weatherIco'>--</span>
+  </div>
+  <div class='meteo-droite' id='forecastRow'></div>
+</div>
+<div class='cartes-deux'>
+  <div class='carte'>
+    <div class='ligne'><span class='label'>Production</span><span class='val prod' id='valProd'>0 W</span></div>
+    <div class='ligne'><span class='label'>Conso</span><span class='val conso' id='valConso'>0 W</span></div>
+  </div>
+  <div class='carte'>
+    <div class='ligne'><span class='label'>Production jour</span><span class='val prod' id='energyProd'>0.0 kWh</span></div>
+    <div class='ligne'><span class='label'>Conso jour</span><span class='val conso' id='energyConso'>0.0 kWh</span></div>
+  </div>
+</div>
+<div class='flux'>
+  <div class='flux-item'><span class='ico'>☀️</span><span>PV</span></div>
+  <span class='flux-chevron' id='ch1' aria-hidden='true'><svg viewBox='0 0 24 24' fill='currentColor'><path d='M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z'/></svg></span>
+  <div class='flux-item'><span class='val' id='valPvMaison'>0 W</span></div>
+  <span class='flux-chevron' id='ch2' aria-hidden='true'><svg viewBox='0 0 24 24' fill='currentColor'><path d='M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z'/></svg></span>
+  <div class='flux-item'><span class='ico'>🏠</span><span>Maison</span></div>
+  <span class='flux-chevron' id='ch3' aria-hidden='true'><svg viewBox='0 0 24 24' fill='currentColor'><path d='M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z'/></svg></span>
+  <div class='flux-item'><span class='val' id='valMaisonReseau'>0 W</span></div>
+  <span class='flux-chevron' id='ch4' aria-hidden='true'><svg viewBox='0 0 24 24' fill='currentColor'><path d='M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z'/></svg></span>
+  <div class='flux-item'><span class='ico'>🔌</span><span>Réseau</span></div>
+</div>
+</div>
+<script>
+function codeToEmoji(c){if(c==null)return'--';var x=Number(c);if(x>=800&&x<803)return'☀️';if(x>=803)return'☁️';if(x>=700)return'🌫️';if(x>=600)return'❄️';if(x>=500)return'🌧️';if(x>=300)return'🌧️';if(x>=200)return'⛈️';return'🌤️';}
+function upd(){
+  fetch('/enphaseMonitorData').then(r=>r.json()).then(d=>{
+    document.getElementById('dateStr').textContent=d.date||'--';
+    document.getElementById('timeStr').textContent=d.time||'--:--:--';
+    document.getElementById('icoWifi').className=d.wifi?'ok':'ko';
+    document.getElementById('icoEnphase').className=d.enphase_connected?'ok':'ko';
+    document.getElementById('weatherCity').textContent=d.weather_city||'--';
+    document.getElementById('weatherTemp').textContent=(d.weather_temp!=null?d.weather_temp.toFixed(0):'--')+'°C';
+    document.getElementById('weatherIco').textContent=codeToEmoji(d.weather_code);
+    var fr=document.getElementById('forecastRow');
+    fr.innerHTML='';
+    if(d.forecast&&d.forecast.length){for(var i=0;i<d.forecast.length;i++){var x=d.forecast[i];var n=x.day_name||x.day;var div=document.createElement('div');div.className='forecast-day';div.innerHTML='<div class="d">'+n+'</div><div class="t">'+x.temp+'°</div>';fr.appendChild(div);}}
+    document.getElementById('valProd').textContent=(d.pact_prod!=null?Math.round(d.pact_prod):0)+' W';
+    document.getElementById('valConso').textContent=(d.pact_conso!=null?Math.round(d.pact_conso):0)+' W';
+    document.getElementById('valPvMaison').textContent=(d.pact_prod!=null?Math.round(d.pact_prod):0)+' W';
+    document.getElementById('valMaisonReseau').textContent=(d.pact_grid!=null?Math.round(d.pact_grid):0)+' W';
+    document.getElementById('energyProd').textContent=(d.energy_produced!=null?d.energy_produced.toFixed(1):'0.0')+' kWh';
+    document.getElementById('energyConso').textContent=(d.energy_imported!=null?d.energy_imported.toFixed(1):'0.0')+' kWh';
+    var prod=(d.pact_prod!=null?d.pact_prod:0); var grid=(d.pact_grid!=null?d.pact_grid:0);
+    var colProd=prod>0?'#fbbf24':'#4b5563'; var colGrid=grid<0?'#22c55e':(grid>0?'#9ca3af':'#4b5563');
+    var flip=grid>0;
+    document.getElementById('ch1').style.color=colProd; document.getElementById('ch2').style.color=colProd;
+    document.getElementById('ch3').style.color=colGrid; document.getElementById('ch4').style.color=colGrid;
+    document.getElementById('ch3').style.transform=flip?'scaleX(-1)':'';
+    document.getElementById('ch4').style.transform=flip?'scaleX(-1)':'';
+  }).catch(function(){});
+}
+upd();setInterval(upd,5000);
+</script></body></html>)";
+  server.send(200, "text/html", html);
+}
+
+void handleEnphaseReglages() {
+  if (wifiAPMode) { handleWiFiSetupPage(); return; }
+  String html = R"(<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>
+<link rel='icon' type='image/svg+xml' href='/favicon.ico'><title>Réglages - ENPHASE MONITOR</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;min-height:100vh;padding:20px}
+.back{display:inline-block;background:#374151;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;margin-bottom:24px}
+.back:hover{background:#4b5563}
+h1{color:#fbbf24;margin-bottom:8px;font-size:1.6em}
+.sub{color:#9ca3af;margin-bottom:24px;font-size:0.95em}
+.links{display:flex;flex-direction:column;gap:12px;max-width:400px}
+.links a{display:block;background:rgba(41,37,36,0.9);border:1px solid rgba(251,191,36,0.3);border-radius:12px;padding:16px 20px;color:#fff;text-decoration:none;font-weight:500;transition:all .2s}
+.links a:hover{background:rgba(55,65,81,0.5);border-color:rgba(251,191,36,0.5)}
+.card-exp{margin-top:24px;padding:20px;background:rgba(41,37,36,0.9);border:1px solid rgba(251,191,36,0.3);border-radius:12px;max-width:400px}
+.card-exp h2{color:#d1d5db;font-size:1.1em;margin-bottom:8px}
+.card-exp p{margin-bottom:10px;color:#9ca3af;font-size:0.95em}
+.card-exp a.btn-exp{display:inline-block;padding:10px 16px;background:rgba(251,191,36,0.2);color:#fbbf24;border-radius:8px;text-decoration:none;font-weight:500;margin-bottom:12px}
+.card-exp a.btn-exp:hover{background:rgba(251,191,36,0.3)}
+.card-exp input[type=file]{margin:8px 0;color:#d1d5db;font-size:0.9em}
+.card-exp button.btn-imp{background:#16a34a;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:600;cursor:pointer}
+.card-exp button.btn-imp:hover{background:#22c55e}
+.card-exp .import-status{margin-top:8px;font-size:0.9em;color:#9ca3af}
+.compte-dev{display:inline-flex;align-items:center;gap:6px;margin-top:24px;padding:6px 12px;border-radius:20px;font-size:0.8em;color:#6b7280;background:rgba(55,65,81,0.5);border:1px solid rgba(75,85,99,0.5);text-decoration:none;cursor:pointer;transition:all .2s}
+.compte-dev:hover{color:#9ca3af;background:rgba(75,85,99,0.5)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal-box{background:#1c1917;border:1px solid rgba(251,191,36,0.3);border-radius:12px;padding:24px;max-width:320px;width:100%}
+.modal-box h3{color:#d1d5db;font-size:1em;margin-bottom:12px}
+.modal-box input{width:100%;padding:12px;margin-bottom:12px;border-radius:8px;border:1px solid #4b5563;background:#1f2937;color:#fff;font-size:1em;box-sizing:border-box}
+.modal-box button{background:#f59e0b;color:#0c0a09;border:none;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;margin-right:8px}
+.modal-box button:hover{background:#fbbf24}
+.modal-box .err{color:#ef4444;font-size:0.9em;margin-top:8px}
+</style></head><body>)";
+  html += "<a href='/enphase-monitor' class='back'>&larr; Retour ENPHASE MONITOR</a>";
+  html += "<h1>⚙️ Réglages</h1>";
+  html += "<p class='sub'>Retour vers l'accueil Enphase ci-dessus. Liens vers les configurations.</p>";
+  html += "<div class='links'>";
+  html += "<a href='/wifi?from=enphase'>📶 Réglages WiFi (scan, connexion, infos)</a>";
+  html += "<a href='/enphase?from=enphase'>📡 Config Envoy (4 paramètres)</a>";
+  html += "<a href='/weather?from=enphase'>🌦️ Réglages Météo</a>";
+  html += "<a href='/info?from=enphase'>⚡ Réglages Tempo (activable)</a>";
+  html += "</div>";
+  html += "<div class='card-exp'><h2>💾 Export / Import paramètres</h2>";
+  html += "<p>Uniquement ce module : Config Envoy, verrouillage écran, météo.</p>";
+  html += "<p><a href='/exportEnphase' class='btn-exp'>📤 Exporter la config</a></p>";
+  html += "<p><span class='label'>Importer :</span></p>";
+  html += "<input type='file' id='importEnphaseFile' accept='.json'>";
+  html += "<p><button type='button' onclick='importEnphaseConfig()' class='btn-imp'>📥 Importer la config</button></p>";
+  html += "<p id='importEnphaseStatus' class='import-status'></p></div>";
+  html += R"(<script>
+  function importEnphaseConfig(){
+    var f=document.getElementById('importEnphaseFile');
+    var st=document.getElementById('importEnphaseStatus');
+    if(!f.files.length){ st.textContent='Choisissez un fichier JSON.'; st.style.color='#ef4444'; return; }
+    var r=new FileReader();
+    r.onload=function(){
+      st.textContent='Import en cours...'; st.style.color='#9ca3af';
+      fetch('/import',{method:'POST',headers:{'Content-Type':'application/json'},body:r.result})
+        .then(function(res){ return res.json(); })
+        .then(function(data){
+          if(data.ok){ st.textContent='Config importée. Redémarrage recommandé pour Envoy.'; st.style.color='#22c55e'; setTimeout(function(){ location.reload(); },1500); }
+          else{ st.textContent='Erreur: '+(data.err||'inconnue'); st.style.color='#ef4444'; }
+        })
+        .catch(function(e){ st.textContent='Erreur: '+e; st.style.color='#ef4444'; });
+    };
+    r.readAsText(f.files[0]);
+  }
+  </script>)";
+  if (screenLockPassword.length() > 0) {
+    html += "<span class='compte-dev' onclick='showDevModal()' title='Accès accueil complet'>🔧 Compte DEV</span>";
+    html += "<div id='devModal' class='modal-overlay' onclick='if(event.target===this)closeDevModal()'>";
+    html += "<div class='modal-box' onclick='event.stopPropagation()'><h3>🔓 Accès accueil</h3>";
+    html += "<p style='color:#9ca3af;font-size:0.85em;margin-bottom:12px'>Mot de passe requis.</p>";
+    html += "<form method='POST' action='/unlockScreen' id='devUnlockForm'>";
+    html += "<input type='hidden' name='next' value='/'>";
+    html += "<input type='password' name='pwd' id='devPwd' placeholder='Mot de passe' autocomplete='off' required>";
+    html += "<div><button type='submit'>Valider</button><button type='button' onclick='closeDevModal()'>Annuler</button></div>";
+    html += "</form>";
+    if (server.hasArg("err") && server.arg("err") == "1") html += "<p class='err' style='margin-top:8px'>Mot de passe incorrect.</p>";
+    html += "</div></div>";
+    html += R"(<script>
+    function showDevModal(){ document.getElementById('devModal').classList.add('show'); document.getElementById('devPwd').value=''; document.getElementById('devPwd').focus(); }
+    function closeDevModal(){ document.getElementById('devModal').classList.remove('show'); }
+    if(document.location.search.indexOf('err=1')!==-1) setTimeout(showDevModal,50);
+    </script>)";
+  } else {
+    html += "<a href='/' class='compte-dev' title='Accès accueil complet'>🔧 Compte DEV</a>";
+  }
+  html += "</body></html>";
+  server.send(200, "text/html", html);
+}
+
 // SERVEUR WEB - UPLOAD OTA
 void handleUpdate() {
   server.sendHeader("Connection", "close");
@@ -2041,7 +2297,9 @@ void handleInfoWeb() {
   html += ".value{color:#fff;font-weight:600}";
   html += "@media (max-width: 768px){body{padding:12px}h1{font-size:1.5em}.card{padding:15px;margin:12px 0}.card h2{font-size:16px}.btn{width:100%;padding:12px 16px}}";
   html += "@media (max-width: 480px){body{padding:10px}h1{font-size:1.3em}.label{display:block;width:100%;margin-bottom:3px}.card button{width:100%;padding:14px}}</style></head><body>";
-  html += "<a href='/' class='btn'>&larr; Retour</a>";
+  String backUrl = (server.hasArg("from") && server.arg("from") == "enphase") ? "/enphase-monitor" : "/";
+  String backLabel = (server.hasArg("from") && server.arg("from") == "enphase") ? "Retour ENPHASE MONITOR" : "Retour";
+  html += "<a href='" + backUrl + "' class='btn'>&larr; " + backLabel + "</a>";
   html += "<h1>ℹ️ Informations Système</h1>";
   
   html += "<div class='card'><h2>📶 WiFi</h2>";
@@ -2120,12 +2378,15 @@ void handleInfoWeb() {
   // Verrouillage Enphase : MDP requis pour quitter le mode Enphase
   html += "<h3 style='margin-top:20px;margin-bottom:10px;color:#d1d5db;font-size:1em'>🔒 Verrouillage Enphase</h3>";
   html += "<p style='color:#9ca3af;font-size:0.9em;margin-bottom:10px'>Quand l'écran est sur Enphase, exiger un mot de passe pour changer d'écran (web et écran LVGL).</p>";
-  html += "<form method='POST' action='/saveScreenLock' style='margin-top:12px'>";
+  html += "<form method='POST' action='/saveScreenLock' style='margin-top:12px' id='formScreenLock' onsubmit='return validateScreenLockPwd()'>";
   html += "<label style='display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer'>";
   html += "<input type='checkbox' name='lock_enabled' value='1'" + String(screenLockEnabled ? " checked" : "") + ">";
   html += "<span>Activer le verrouillage (mot de passe requis pour quitter le mode Enphase)</span></label>";
   html += "<p><span class='label'>Mot de passe pour déverrouiller:</span></p>";
-  html += "<input type='password' name='pwd' placeholder='Mot de passe (laisser vide pour ne pas changer)' style='width:100%;max-width:280px;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #4b5563;background:#1f2937;color:#fff'>";
+  html += "<input type='password' name='pwd' id='screenLockPwd' placeholder='Mot de passe (vide = ne pas changer)' style='width:100%;max-width:280px;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #4b5563;background:#1f2937;color:#fff'>";
+  html += "<p><span class='label'>Confirmer le mot de passe:</span></p>";
+  html += "<input type='password' name='pwd2' id='screenLockPwd2' placeholder='Confirmer le mot de passe' style='width:100%;max-width:280px;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #4b5563;background:#1f2937;color:#fff'>";
+  if (server.hasArg("err") && server.arg("err") == "lock_mismatch") html += "<p style='color:#ef4444;font-size:0.9em;margin-top:4px'>Les deux mots de passe ne correspondent pas.</p>";
   html += "<p style='margin-top:12px'><button type='submit' class='btn' style='display:inline-block;cursor:pointer;border:none;background:#f59e0b;color:#0c0a09'>Enregistrer</button></p>";
   html += "</form></div>";
   
@@ -2169,6 +2430,13 @@ void handleInfoWeb() {
   html += "<p style='margin-top:15px'><button onclick='restartDevice()' class='btn' style='display:inline-block;cursor:pointer;border:none;background:#ef4444;color:white'>🔴 Redémarrer</button></p></div>";
   
   html += R"(<script>
+function validateScreenLockPwd() {
+  var p1 = document.getElementById('screenLockPwd').value;
+  var p2 = document.getElementById('screenLockPwd2').value;
+  if (p1 !== p2) { alert('Les deux mots de passe ne correspondent pas.'); return false; }
+  if (p1.length > 0 && p2.length === 0) { alert('Veuillez confirmer le mot de passe.'); return false; }
+  return true;
+}
 function importConfig() {
   var f = document.getElementById('importFile');
   var st = document.getElementById('importStatus');
@@ -2406,6 +2674,25 @@ void handleExportConfig() {
   server.send(200, "application/json", out);
 }
 
+// Export config Enphase uniquement (paramètres du module : Envoy, verrouillage, météo)
+void handleExportEnphaseConfig() {
+  JsonDocument doc;
+  doc["version"] = 1;
+  doc["exported_at"] = (unsigned long)time(nullptr);
+  doc[PREF_ENPHASE_IP] = config_enphase_ip;
+  doc[PREF_ENPHASE_USER] = config_enphase_user;
+  doc[PREF_ENPHASE_PWD] = config_enphase_pwd;
+  doc[PREF_ENPHASE_SERIAL] = config_enphase_serial;
+  doc[PREF_SCREEN_LOCK_ENABLED] = screenLockEnabled;
+  doc[PREF_SCREEN_LOCK_PWD] = screenLockPassword;
+  doc[PREF_WEATHER_API] = weather_getApiKey();
+  doc[PREF_WEATHER_CITY] = weather_getCity();
+  String out;
+  serializeJson(doc, out);
+  server.sendHeader("Content-Disposition", "attachment; filename=\"msunpv_enphase_config.json\"");
+  server.send(200, "application/json", out);
+}
+
 // Import config (POST body = JSON)
 void handleImportConfig() {
   if (server.method() != HTTP_POST) {
@@ -2495,8 +2782,10 @@ void handleSaveScreenFlip() {
 // Retourne true si le client est déverrouillé (cookie valide)
 static bool isUnlockCookieValid() {
   if (unlockToken.length() == 0 || millis() >= unlockExpiry) return false;
-  if (!server.hasHeader("Cookie")) return false;
-  String cookie = server.header("Cookie");
+  String cookie;
+  if (server.hasHeader("Cookie")) cookie = server.header("Cookie");
+  else if (server.hasHeader("cookie")) cookie = server.header("cookie");
+  else return false;
   int i = cookie.indexOf("unlock_token=");
   if (i < 0) return false;
   i += 13;
@@ -2590,19 +2879,23 @@ void handleScreensWeb() {
 
 void handleUnlockScreen() {
   if (!server.hasArg("pwd")) {
-    server.sendHeader("Location", "/screens?err=1");
+    String redir = server.hasArg("next") ? server.arg("next") : "/screens";
+    if (redir != "/" && redir != "/info") redir = "/screens";
+    server.sendHeader("Location", redir + "?err=1");
     server.send(302, "text/plain", "");
     return;
   }
   if (server.arg("pwd") != screenLockPassword) {
-    server.sendHeader("Location", "/screens?err=1");
+    server.sendHeader("Location", (server.hasArg("next") && server.arg("next") == "/") ? "/enphase-reglages?err=1" : "/screens?err=1");
     server.send(302, "text/plain", "");
     return;
   }
   unlockToken = String((unsigned long)esp_random(), HEX);
   unlockExpiry = millis() + 300000;  // 5 min
   server.sendHeader("Set-Cookie", "unlock_token=" + unlockToken + "; Path=/; Max-Age=300");
-  server.sendHeader("Location", "/screens");
+  String redir = server.hasArg("next") ? server.arg("next") : "/screens";
+  if (redir != "/" && redir != "/info") redir = "/screens";
+  server.sendHeader("Location", redir);
   server.send(302, "text/plain", "");
   Serial.println("[Screen] Déverrouillage OK");
 }
@@ -2639,7 +2932,15 @@ void handleSaveScreenLock() {
   screenLockEnabled = (server.hasArg("lock_enabled") && server.arg("lock_enabled") == "1");
   if (server.hasArg("pwd")) {
     String p = server.arg("pwd");
-    if (p.length() > 0) screenLockPassword = p;
+    String p2 = server.hasArg("pwd2") ? server.arg("pwd2") : "";
+    if (p.length() > 0) {
+      if (p != p2) {
+        server.sendHeader("Location", "/info?err=lock_mismatch");
+        server.send(302, "text/plain", "");
+        return;
+      }
+      screenLockPassword = p;
+    }
   }
   savePreferences();
   server.sendHeader("Location", "/info");
@@ -3230,11 +3531,19 @@ void handleWifiConfig() {
       </div>
       
       <button type="submit" class="btn">💾 Enregistrer et Redémarrer</button>
-      <button type="button" class="btn btn-secondary" onclick="location.href='/'">❌ Annuler</button>
+      <button type="button" class="btn btn-secondary" onclick="location.href=')";
+  String wifiBackUrl = (server.hasArg("from") && server.arg("from") == "enphase") ? "/enphase-monitor" : "/";
+  String wifiBackLabel = (server.hasArg("from") && server.arg("from") == "enphase") ? "Retour ENPHASE MONITOR" : "Retour au Dashboard";
+  html += wifiBackUrl;
+  html += R"('">❌ Annuler</button>
     </form>
     
     <div class="nav">
-      <a href="/" style="color: #fbbf24; text-decoration: none;">&larr; Retour au Dashboard</a>
+      <a href=")";
+  html += wifiBackUrl;
+  html += R"(" style="color: #fbbf24; text-decoration: none;">&larr; )";
+  html += wifiBackLabel;
+  html += R"(</a>
     </div>
   </div>
 </body>

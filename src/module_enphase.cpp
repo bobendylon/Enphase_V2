@@ -591,8 +591,11 @@ void enphase_init(WiFiClientSecure* client) {
 // ============================================
 
 void enphase_handleWeb(WebServer* server) {
+  bool fromEnphase = (server->hasArg("from") && server->arg("from") == "enphase");
+  String backUrl = fromEnphase ? "/enphase-monitor" : "/";
+  String configUrl = fromEnphase ? "/enphase-reglages" : "/info";
   bool hasEnphase = (config_enphase_ip.length() > 0);
-  
+
   if (!hasEnphase) {
     String html = R"(<!DOCTYPE html><html><head><meta charset='utf-8'>
 <link rel='icon' type='image/svg+xml' href='/favicon.ico'>
@@ -605,8 +608,12 @@ h1{color:#fb923c;margin-top:50px}
 </style></head><body>
 <h1>📡 Aucun Enphase Envoy configuré</h1>
 <p style='color:#9ca3af'>Configurez l'IP et les identifiants dans la page Info.</p>
-<a href='/info' class='btn'>⚙️ Configuration</a>
-<a href='/' class='btn'>← Retour</a>
+<a href=')";
+    html += configUrl;
+    html += R"(' class='btn'>⚙️ Configuration</a>
+<a href=')";
+    html += backUrl;
+    html += R"(' class='btn'>← Retour</a>
 </body></html>)";
     server->send(200, "text/html", html);
     return;
@@ -933,9 +940,15 @@ body {
     </div>
   </div>
   -->
-  <div class='nav'>
-    <a href='/info' class='btn'>⚙️ Configuration</a>
-    <a href='/' class='btn'>← Dashboard</a>
+  <div class='nav'>)";
+  html += "<a href='" + configUrl + "' class='btn'>⚙️ Configuration</a>";
+  html += "<a href='" + backUrl + "' class='btn'>← " + String(fromEnphase ? "ENPHASE MONITOR" : "Dashboard") + "</a>";
+  if (fromEnphase) {
+    html += "<p style='margin-top:20px;padding:14px;background:rgba(251,191,36,0.15);border-radius:8px;border-left:4px solid #f59e0b;color:#d1d5db;font-size:0.9em;max-width:500px;text-align:left'>";
+    html += "⚠️ <strong>Prise en compte de la configuration Envoy :</strong> un redémarrage de l'appareil (débrancher puis rebrancher) est recommandé pour une bonne prise en compte des paramètres.";
+    html += "</p>";
+  }
+  html += R"(
   </div>
 </div>
 

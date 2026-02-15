@@ -608,6 +608,8 @@ void setup() {
   // V11.0 - MQTT (Module)
   server.on("/mqtt", []() { mqtt_handleConfig(&server); });
   server.on("/saveMqtt", HTTP_POST, []() { mqtt_handleSaveConfig(&server); });
+  server.on("/mqttListenSet", HTTP_POST, []() { mqtt_handleListenSet(&server); });
+  server.on("/mqttListenData", []() { mqtt_handleListenData(&server); });
   server.on("/wifi", handleWifiConfig);
   server.on("/saveWifi", HTTP_POST, handleSaveWifiConfig);
   // MSunPV retiré (Enphase V2)
@@ -1530,6 +1532,10 @@ void handleData() {
   json += "\"ledGreen\":" + String(ledLockedGreen ? "true" : "false") + ",";
   json += "\"wifiConnected\":" + String(wifiConnected ? "true" : "false") + ",";
   json += "\"mqttConnected\":" + String(mqttConnected ? "true" : "false") + ",";
+  String mqttMsg = mqtt_getStateMessage();
+  mqttMsg.replace("\"", "\\\"");
+  json += "\"mqttState\":" + String(mqtt_getState()) + ",";
+  json += "\"mqttStateMessage\":\"" + mqttMsg + "\",";
   json += "\"msunpvStatus\":\"\",";
   json += "\"msunpv_status\":\"\"";
   json += "}";

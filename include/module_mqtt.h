@@ -54,6 +54,11 @@ extern String config_msunpv_ip;  // Géré dans la page MQTT
 void mqtt_init(PubSubClient* client, WiFiClient* wifiClient);
 void mqtt_loop();  // À appeler dans loop()
 void mqtt_reconnect();
+int mqtt_getState();              // Code état PubSubClient (-4 timeout, -2 refuse, etc.)
+String mqtt_getStateMessage();    // Message lisible pour diagnostic
+void mqtt_setListenTopic(const String& topic);  // Topic à écouter (outil test)
+void mqtt_handleListenSet(WebServer* server);   // POST /mqttListenSet
+void mqtt_handleListenData(WebServer* server);  // GET /mqttListenData
 void mqtt_handleConfig(WebServer* server);           // GET /mqtt
 void mqtt_handleSaveConfig(WebServer* server);       // POST /saveMqtt
 void mqtt_loadConfig(Preferences* prefs);

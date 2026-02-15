@@ -35,8 +35,7 @@ extern const char* MQTT_PASSWORD;
 extern void addLog(String message);
 extern void addLogf(const char* format, ...);
 
-// Déclaration externe pour config_msunpv_ip (maintenant dans module_msunpv.cpp)
-extern String config_msunpv_ip;
+// M'SunPV retiré (Enphase V2)
 #define MQTT_RECONNECT_INTERVAL 5000
 
 // Valeurs par défaut depuis config.h
@@ -652,14 +651,6 @@ void mqtt_handleConfig(WebServer* server) {
         <div class="value-display" style="color: #9ca3af; font-size: 0.8em;">Topic pour envoyer les commandes (1 = Activer, 0 = Désactiver)</div>
       </div>
       
-      <h2>🔌 Routeur M'SunPV</h2>
-      <div class="form-group">
-        <label>IP M'SunPV Router</label>
-        <input type="text" name="msunpv_ip" value=")";
-  html += config_msunpv_ip;
-  html += R"(" required>
-      </div>
-      
       <button type="submit" class="btn">💾 Enregistrer et Redémarrer</button>
       <button type="button" class="btn btn-secondary" onclick="location.href='/'">❌ Annuler</button>
     </form>
@@ -680,7 +671,6 @@ void mqtt_handleSaveConfig(WebServer* server) {
     // Récupérer les valeurs
     config_mqtt_ip = server->arg("mqtt_ip");
     config_mqtt_port = server->arg("mqtt_port").toInt();
-    config_msunpv_ip = server->arg("msunpv_ip");
     config_topic_prod = server->arg("topic_prod");
     config_topic_cabane = server->arg("topic_cabane");
     config_topic_conso = server->arg("topic_conso");
@@ -709,10 +699,8 @@ void mqtt_handleSaveConfig(WebServer* server) {
     
     // Sauvegarder dans NVS
     extern Preferences preferences;
-    extern void msunpv_saveConfig(Preferences* prefs);
     preferences.begin("msunpv", false);  // PREF_NAMESPACE depuis config.h
     mqtt_saveConfig(&preferences);
-    msunpv_saveConfig(&preferences);  // Sauvegarder aussi config_msunpv_ip modifiée
     preferences.end();
     
     // Mettre à jour le serveur MQTT si déjà initialisé

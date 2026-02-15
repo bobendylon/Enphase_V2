@@ -23,7 +23,6 @@
 #include "module_mqtt.h"
 #include "module_shelly.h"
 #include "module_enphase.h"
-#include "module_msunpv.h"
 #include "module_stats.h"
 #include "module_sd.h"
 #include "module_tempo.h"
@@ -58,7 +57,8 @@ unsigned long startupTime = 0;  // Temps du démarrage
 bool screenFlipped = false;
 
 // V15.0 - Écran actif : 0=MQTT (date blanche), 1=Enphase (date orange), 2=M'SunPV (date verte)
-uint8_t activeScreenType = 0;
+// Enphase V2 : forcé à 1 (écran unique Enphase)
+uint8_t activeScreenType = 1;
 
 // Verrouillage écran Enphase : MDP requis pour quitter le mode Enphase (web)
 bool screenLockEnabled = false;
@@ -171,7 +171,7 @@ lv_color_t *disp_draw_buf;
 uint32_t bufSize;
 
 // Objets UI (déclarés dans les fichiers .h)
-lv_obj_t *screenMain;
+lv_obj_t *screenMain = NULL;     // Enphase V2 : non utilisé (écran unique Enphase)
 lv_obj_t *screenEnphase = NULL;  // V15.0 - Écran Enphase
 lv_obj_t *screenStats;
 lv_obj_t *screenInfo;
@@ -619,10 +619,7 @@ void setup() {
   server.on("/saveMqtt", HTTP_POST, []() { mqtt_handleSaveConfig(&server); });
   server.on("/wifi", handleWifiConfig);
   server.on("/saveWifi", HTTP_POST, handleSaveWifiConfig);
-  // V11.0 - MSunPV (Module)
-  server.on("/msunpv", []() { msunpv_handleWeb(&server); });
-  server.on("/msunpvCmd", HTTP_POST, []() { msunpv_handleCommand(&server); });
-  server.on("/msunpvData", []() { msunpv_handleData(&server); });
+  // MSunPV retiré (Enphase V2)
   // V10.0 - Météo
   // V11.0 - Météo (Module)
   server.on("/weather", []() { weather_handleWeb(&server); });
@@ -684,11 +681,10 @@ void setup() {
   lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(indev, my_touchpad_read);
   
-  // Création UI
-  createMainScreen();
+  // Création UI - Enphase V2 : écran unique Enphase (screenMain non créé)
   createEnphaseScreen();  // V15.0 - Écran Enphase
   createSettingsScreen();
-  lv_screen_load(activeScreenType == 0 ? screenMain : screenEnphase);  // 1=Enphase, 2=M'SunPV
+  lv_screen_load(screenEnphase);  // Enphase V2 : toujours écran Enphase
   
   // ✅ Forcer 3 rafraîchissements AVANT d'allumer (LVGL prêt)
   for (int i = 0; i < 3; i++) {
@@ -778,7 +774,7 @@ void setupOTA() {
   // Météo initiale (V11.0 - Module)
   weather_init();
   shelly_init();
-  msunpv_init();
+  // msunpv_init() retiré (Enphase V2)
   delay(2000);  // Attendre connexion WiFi stable
   if (wifiConnected) {
     weather_update();
@@ -808,10 +804,7 @@ void loop() {
     mqtt_loop();
   }
   
-  // MSunPV (V11.0 - Module) — désactivé en mode Enphase
-  if (wifiConnected && activeScreenType != 1) {
-    msunpv_update();
-  }
+  // MSunPV retiré (Enphase V2)
   
   // Météo (V11.0 - Module) - Mise à jour toutes les 10 minutes
   if (wifiConnected) {
@@ -869,15 +862,11 @@ void loop() {
   delay(5);
 }
 
-// MISE À JOUR UI
+// MISE À JOUR UI - Enphase V2 : toujours écran Enphase
 void updateUI() {
   if (currentPage == 0) {
-    if (activeScreenType == 1 && screenEnphase) {
+    if (screenEnphase) {
       updateEnphaseUI();
-    } else if (activeScreenType == 2 && screenEnphase) {
-      updateMSunPVUI();
-    } else if (screenMain) {
-      updateMainUI();
     }
   } else if (currentPage == 3 && screenSettings) {
     updateSettingsUI();
@@ -1536,7 +1525,6 @@ void handleRoot() {
         <div class="card-title">Température Cumulus</div>
         <div class="card-value water"><span id="water">48</span><span class="card-unit">°C</span></div>
         <div class="msunpv-controls">
-          <div class="msunpv-status status-auto" id="msunpvStatus" onclick="location.href='/msunpv'" style="cursor: pointer;">AUTO</div>
           <div class="led" id="led"></div>
         </div>
       </div>
@@ -1558,7 +1546,6 @@ void handleRoot() {
     <div class="nav">
       <a href="/mqtt" class="btn">📡 Config MQTT</a>
       <a href="/wifi" class="btn">📶 Config WiFi</a>
-      <a href="/msunpv" class="btn">🔌 Contrôle M'SunPV</a>
       <a href="/shellies" class="btn">⚡ Shelly EM</a>
       <a href="/enphase" class="btn">📡 Enphase Envoy</a>
       <a href="/enphase-monitor" class="btn">☀️ ENPHASE MONITOR</a>
@@ -1631,9 +1618,7 @@ void handleRoot() {
           const led = document.getElementById('led');
           led.className = 'led ' + (d.ledGreen ? 'led-green' : 'led-red');
           
-          const msunpvStatus = document.getElementById('msunpvStatus');
-          msunpvStatus.textContent = d.msunpvStatus;
-          msunpvStatus.className = 'msunpv-status status-' + d.msunpvStatus.toLowerCase();
+          // M'SunPV retiré (Enphase V2)
           
           // Mise à jour des indicateurs WiFi et MQTT
           const wifiIcon = document.getElementById('wifiIcon');
@@ -1899,8 +1884,8 @@ void handleData() {
   json += "\"ledGreen\":" + String(ledLockedGreen ? "true" : "false") + ",";
   json += "\"wifiConnected\":" + String(wifiConnected ? "true" : "false") + ",";
   json += "\"mqttConnected\":" + String(mqttConnected ? "true" : "false") + ",";
-  json += "\"msunpvStatus\":\"" + msunpv_status + "\",";
-  json += "\"msunpv_status\":\"" + msunpv_status + "\"";
+  json += "\"msunpvStatus\":\"\",";
+  json += "\"msunpv_status\":\"\"";
   json += "}";
   
   server.send(200, "application/json", json);
@@ -2313,9 +2298,7 @@ void handleInfoWeb() {
   html += "<p><span class='label'>Broker:</span> <span class='value'>" + String(MQTT_SERVER) + ":" + String(MQTT_PORT) + "</span></p>";
   html += "<p><span class='label'>Buffer:</span> <span class='value'>2048 bytes (Zigbee2MQTT)</span></p></div>";
   
-  html += "<div class='card'><h2>🔌 M'SunPV</h2>";
-  html += "<p><span class='label'>IP:</span> <span class='value'>" + config_msunpv_ip + "</span></p>";
-  html += "<p><span class='label'>État:</span> <span class='value'>" + msunpv_status + "</span></p></div>";
+  // M'SunPV retiré (Enphase V2)
   
   // Carte Shelly EM (V11.0)
   html += "<div class='card'><h2>⚡ Shelly EM</h2>";
@@ -2370,8 +2353,8 @@ void handleInfoWeb() {
   
   // V12.1 - Rotation écran + V15.0 Sélection écran
   html += "<div class='card'><h2>🖥️ Écran</h2>";
-  html += "<p><span class='label'>Écran actif:</span> <span class='value' style='color:" + String(activeScreenType == 1 ? "#f59e0b" : (activeScreenType == 2 ? "#22c55e" : "#fff")) + "'>" + String(activeScreenType == 0 ? "MQTT (date blanche)" : (activeScreenType == 1 ? "Enphase (date orange)" : "M'SunPV (date verte)")) + "</span></p>";
-  html += "<p style='margin-top:10px'><a href='/screens' class='btn' style='display:inline-block;text-decoration:none;cursor:pointer;border:none'>🖥️ Choisir l'écran (MQTT / Enphase / M'SunPV)</a></p>";
+  html += "<p><span class='label'>Écran actif:</span> <span class='value' style='color:#f59e0b'>Enphase (date orange)</span></p>";
+  html += "<p style='margin-top:10px'><a href='/screens' class='btn' style='display:inline-block;text-decoration:none;cursor:pointer;border:none'>🖥️ Choisir l'écran</a></p>";
   html += "<p><span class='label'>Rotation:</span> <span class='value' style='color:" + String(screenFlipped ? "#22c55e" : "#9ca3af") + "'>" + String(screenFlipped ? "180° (Retourné)" : "0° (Normal)") + "</span></p>";
   html += "<p style='margin-top:15px'><button onclick='toggleScreenFlip()' class='btn' style='display:inline-block;cursor:pointer;border:none;background:" + String(screenFlipped ? "#ef4444" : "#22c55e") + "'>" + String(screenFlipped ? "↩️ Remettre Normal" : "🔄 Retourner 180°") + "</button></p>";
   html += "<p style='color:#6b7280;margin-top:10px;font-size:0.9em'>L'écran sera retourné immédiatement après sauvegarde</p>";
@@ -2415,7 +2398,7 @@ void handleInfoWeb() {
   unsigned long mins = (uptimeSeconds % 3600) / 60;
   
   html += "<div class='card'><h2>💾 Sauvegarde / Restauration</h2>";
-  html += "<p style='margin-bottom:12px;color:#d1d5db'>Exporter toute la config (WiFi, MQTT, Shelly, Enphase, M'SunPV, Météo, écran, date) pour la réimporter après un reset.</p>";
+  html += "<p style='margin-bottom:12px;color:#d1d5db'>Exporter toute la config (WiFi, MQTT, Shelly, Enphase, Météo, écran, date) pour la réimporter après un reset.</p>";
   html += "<p style='margin-bottom:10px'><a href='/export' class='btn' style='display:inline-block;text-decoration:none;cursor:pointer;border:none'>📤 Exporter la config</a></p>";
   html += "<p style='margin-top:15px'><span class='label'>Importer:</span></p>";
   html += "<input type='file' id='importFile' accept='.json' style='margin:8px 0;color:#d1d5db'>";
@@ -2641,7 +2624,7 @@ void handleExportConfig() {
   doc[PREF_JSON_KEY_CABANE] = config_json_key_cabane;
   doc[PREF_JSON_KEY_WATER1] = config_json_key_water1;
   doc[PREF_JSON_KEY_WATER2] = config_json_key_water2;
-  doc[PREF_MSUNPV_IP] = config_msunpv_ip;
+  // PREF_MSUNPV_IP retiré (Enphase V2)
   doc[PREF_WEATHER_API] = weather_getApiKey();
   doc[PREF_WEATHER_CITY] = weather_getCity();
   doc[PREF_SHELLY1_IP] = config_shelly1_ip;
@@ -2842,7 +2825,7 @@ void handleScreensWeb() {
   } else {
     // Afficher sélection d'écran
     html += "<h1>🖥️ Sélection de l'écran</h1>";
-    html += "<p class='sub'>Choisissez l'écran principal. Date : blanche (MQTT), orange (Enphase), verte (M'SunPV).</p>";
+    html += "<p class='sub'>Choisissez l'écran principal. Enphase V2 : écran Enphase uniquement.</p>";
     html += "<div class='grid'>";
 
     html += "<div class='card' id='card0' onclick='selectScreen(0)'";
@@ -2851,11 +2834,7 @@ void handleScreensWeb() {
 
     html += "<div class='card' id='card1' onclick='selectScreen(1)'";
     if (activeScreenType == 1) html += " style='border-color:#f59e0b;background:rgba(245,158,11,0.1)'";
-    html += "><div class='icon'>⚡</div><div class='title'>Écran Enphase</div><div class='desc'>Même affichage avec date orange.</div></div>";
-
-    html += "<div class='card' id='card2' onclick='selectScreen(2)'";
-    if (activeScreenType == 2) html += " style='border-color:#f59e0b;background:rgba(245,158,11,0.1)'";
-    html += "><div class='icon'>🌡</div><div class='title'>Écran M'SunPV</div><div class='desc'>Données routeur M'SunPV, routage, conso jour. Date verte.</div></div>";
+    html += "><div class='icon'>⚡</div><div class='title'>Écran Enphase</div><div class='desc'>Affichage Enphase avec date orange.</div></div>";
 
     html += "</div>";
     html += "<p style='color:#6b7280;margin-top:20px;font-size:0.9em'>Le changement s'applique immédiatement à l'écran.</p>";
@@ -2910,18 +2889,13 @@ void handleSaveScreens() {
     server.send(400, "application/json", "{\"success\":false,\"error\":\"Invalid value\"}");
     return;
   }
-  // Si verrouillé (Enphase + MDP activé), quitter Enphase (n=0 ou 2) exige un déverrouillage valide
-  bool locked = (activeScreenType == 1 && screenLockEnabled && screenLockPassword.length() > 0);
-  if (locked && (n == 0 || n == 2) && !isUnlockCookieValid()) {
-    server.send(403, "application/json", "{\"success\":false,\"locked\":true,\"error\":\"Mot de passe requis\"}");
-    return;
-  }
+  // Enphase V2 : écran unique Enphase - forcer n=1 (ignorer 0 et 2)
+  n = 1;
   activeScreenType = n;
   savePreferences();
-  if (currentPage == 0) {
-    lv_screen_load(n == 0 ? screenMain : screenEnphase);
+  if (currentPage == 0 && screenEnphase) {
+    lv_screen_load(screenEnphase);
   }
-  if (screenMain) lv_obj_invalidate(screenMain);
   if (screenEnphase) lv_obj_invalidate(screenEnphase);
   lv_refr_now(disp);
   server.send(200, "application/json", "{\"success\":true,\"screen\":" + String(n) + "}");
@@ -2948,10 +2922,10 @@ void handleSaveScreenLock() {
   Serial.println("[Screen] Verrouillage Enphase: " + String(screenLockEnabled ? "activé" : "désactivé"));
 }
 
-// Page Réglages (écran LVGL, roue dentée)
+// Page Réglages (écran LVGL, roue dentée) - Enphase V2 : toujours écran Enphase
 void settings_back_to_main(void) {
   currentPage = 0;
-  lv_screen_load(activeScreenType == 0 ? screenMain : screenEnphase);  // 1=Enphase, 2=M'SunPV
+  lv_screen_load(screenEnphase);
 }
 
 void settings_do_restart(void) {
@@ -3314,8 +3288,7 @@ void loadPreferences() {
   // MQTT (V11.0 - Module)
   mqtt_loadConfig(&preferences);
   
-  // MSunPV (V11.0 - Module)
-  msunpv_loadConfig(&preferences);
+  // MSunPV retiré (Enphase V2)
   
   // Météo (V11.0 - Module)
   weather_loadConfig(&preferences);
@@ -3332,8 +3305,8 @@ void loadPreferences() {
   // V12.1 - Rotation écran
   screenFlipped = preferences.getBool(PREF_SCREEN_FLIPPED, false);
   
-  // V15.0 - Écran actif (MQTT vs Enphase)
-  activeScreenType = preferences.getUChar(PREF_ACTIVE_SCREEN, 0);
+  // V15.0 - Écran actif (MQTT vs Enphase) - Enphase V2 : défaut 1 (écran unique)
+  activeScreenType = preferences.getUChar(PREF_ACTIVE_SCREEN, 1);
   
   // Verrouillage écran Enphase (MDP pour quitter le mode Enphase)
   screenLockEnabled = preferences.getBool(PREF_SCREEN_LOCK_ENABLED, false);
@@ -3361,8 +3334,7 @@ void savePreferences() {
   // MQTT (V11.0 - Module)
   mqtt_saveConfig(&preferences);
   
-  // MSunPV (V11.0 - Module)
-  msunpv_saveConfig(&preferences);
+  // MSunPV retiré (Enphase V2)
   
   // Météo (V11.0 - Module)
   weather_saveConfig(&preferences);

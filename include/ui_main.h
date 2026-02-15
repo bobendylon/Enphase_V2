@@ -9,7 +9,7 @@
 #include "weather_icons.h"
 #include "module_weather.h"
 #include "module_enphase.h"
-#include "module_msunpv.h"
+// module_msunpv retiré (Enphase V2)
 #include "module_tempo.h"
 
 // Icônes header WiFi / MQTT / Shelly / Enphase / Réglages (déclarations extern des .c du projet)
@@ -58,9 +58,7 @@ extern float tempExt;
 extern float tempSalon;
 extern float consoJour;
 
-// Variables M'SunPV (V3.0)
-extern String msunpv_status;
-extern void msunpv_sendCommand(int cmd);
+// M'SunPV retiré (Enphase V2)
 
 // Variable icône météo (V10.0)
 lv_obj_t *weather_icon = NULL;
@@ -95,10 +93,7 @@ lv_obj_t *led_shelly;
 lv_obj_t *led_enphase;
 lv_obj_t *led_settings;
 
-// Objets M'SunPV (V3.0)
-lv_obj_t *label_msunpv_status;
-lv_obj_t *popup_msunpv;
-static lv_timer_t * msunpv_autoclose_timer = NULL;
+// M'SunPV retiré (Enphase V2)
 
 // Popup météo (détail jour + phase lune)
 lv_obj_t *popup_weather = NULL;
@@ -196,7 +191,7 @@ static lv_obj_t *label_infos_ip_val = NULL;
 static lv_obj_t *label_infos_shelly1_val = NULL;
 static lv_obj_t *label_infos_shelly2_val = NULL;
 static lv_obj_t *label_infos_enphase_val = NULL;
-static lv_obj_t *label_infos_msunpv_val = NULL;
+// label_infos_msunpv_val retiré (Enphase V2)
 static lv_obj_t *label_infos_mqtt_val = NULL;
 static lv_obj_t *reset_confirm_popup = NULL;
 
@@ -317,174 +312,7 @@ void settings_reset_clicked(lv_event_t * e) {
   lv_obj_center(lo);
 }
 
-// ============================================
-// CALLBACKS M'SunPV (V3.0)
-// ============================================
-static void msunpv_autoclose_cb(lv_timer_t * t) {
-  (void)t;
-  if (msunpv_autoclose_timer) {
-    lv_timer_del(msunpv_autoclose_timer);
-    msunpv_autoclose_timer = NULL;
-  }
-  if (popup_msunpv) {
-    lv_obj_del(popup_msunpv);
-    popup_msunpv = NULL;
-  }
-}
-
-void msunpv_close_popup(lv_event_t * e) {
-  if (msunpv_autoclose_timer) {
-    lv_timer_del(msunpv_autoclose_timer);
-    msunpv_autoclose_timer = NULL;
-  }
-  if (popup_msunpv) {
-    lv_obj_del(popup_msunpv);
-    popup_msunpv = NULL;
-  }
-}
-
-void msunpv_cmd_auto(lv_event_t * e) {
-  msunpv_sendCommand(2);  // AUTO = 2
-  msunpv_status = "AUTO";
-  Serial.println("[V3.0] Commande AUTO envoyée");
-  
-  // Fermer popup après 500ms et annuler l'autoclose 10s
-  lv_timer_create([](lv_timer_t * timer) {
-    if (msunpv_autoclose_timer) { lv_timer_del(msunpv_autoclose_timer); msunpv_autoclose_timer = NULL; }
-    if (popup_msunpv) {
-      lv_obj_del(popup_msunpv);
-      popup_msunpv = NULL;
-    }
-    lv_timer_del(timer);
-  }, 500, NULL);
-}
-
-void msunpv_cmd_manu(lv_event_t * e) {
-  msunpv_sendCommand(1);  // MANU = 1
-  msunpv_status = "MANU";
-  Serial.println("[V3.0] Commande MANU envoyée");
-  
-  // Fermer popup après 500ms et annuler l'autoclose 10s
-  lv_timer_create([](lv_timer_t * timer) {
-    if (msunpv_autoclose_timer) { lv_timer_del(msunpv_autoclose_timer); msunpv_autoclose_timer = NULL; }
-    if (popup_msunpv) {
-      lv_obj_del(popup_msunpv);
-      popup_msunpv = NULL;
-    }
-    lv_timer_del(timer);
-  }, 500, NULL);
-}
-
-void msunpv_cmd_off(lv_event_t * e) {
-  msunpv_sendCommand(0);  // OFF = 0
-  msunpv_status = "OFF";
-  Serial.println("[V3.0] Commande OFF envoyée");
-  
-  // Fermer popup après 500ms et annuler l'autoclose 10s
-  lv_timer_create([](lv_timer_t * timer) {
-    if (msunpv_autoclose_timer) { lv_timer_del(msunpv_autoclose_timer); msunpv_autoclose_timer = NULL; }
-    if (popup_msunpv) {
-      lv_obj_del(popup_msunpv);
-      popup_msunpv = NULL;
-    }
-    lv_timer_del(timer);
-  }, 500, NULL);
-}
-
-void msunpv_open_popup(lv_event_t * e) {
-  if (popup_msunpv) return;  // Déjà ouvert
-  
-  // Overlay
-  popup_msunpv = lv_obj_create(lv_screen_active());
-  lv_obj_set_size(popup_msunpv, 480, 480);
-  lv_obj_set_pos(popup_msunpv, 0, 0);
-  lv_obj_set_style_bg_color(popup_msunpv, lv_color_hex(0x000000), 0);
-  lv_obj_set_style_bg_opa(popup_msunpv, LV_OPA_70, 0);
-  lv_obj_set_style_border_width(popup_msunpv, 0, 0);
-  lv_obj_clear_flag(popup_msunpv, LV_OBJ_FLAG_SCROLLABLE);
-  
-  // Dialog box
-  lv_obj_t *dialog = lv_obj_create(popup_msunpv);
-  lv_obj_set_size(dialog, 380, 320);
-  lv_obj_center(dialog);
-  lv_obj_set_style_bg_color(dialog, lv_color_hex(COLOR_CARD), 0);
-  lv_obj_set_style_border_width(dialog, 2, 0);
-  lv_obj_set_style_border_color(dialog, lv_color_hex(COLOR_PROD), 0);
-  lv_obj_set_style_radius(dialog, 16, 0);
-  lv_obj_set_style_pad_all(dialog, 20, 0);
-  
-  // Titre
-  lv_obj_t *title = lv_label_create(dialog);
-  lv_label_set_text(title, "CONTROLE CUMULUS");
-  lv_obj_set_style_text_color(title, lv_color_hex(COLOR_PROD), 0);
-  lv_obj_set_style_text_font(title, &lv_font_montserrat_20, 0);
-  lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 0);
-  
-  // Info état actuel
-  lv_obj_t *info = lv_label_create(dialog);
-  char infoText[64];
-  sprintf(infoText, "Etat: %s | Temp: %.0f°C", msunpv_status.c_str(), waterTemp);
-  lv_label_set_text(info, infoText);
-  lv_obj_set_style_text_color(info, lv_color_hex(0xd1d5db), 0);
-  lv_obj_set_style_text_font(info, &lv_font_montserrat_16, 0);
-  lv_obj_align(info, LV_ALIGN_TOP_MID, 0, 35);
-  
-  // Bouton AUTO
-  lv_obj_t *btn_auto = lv_btn_create(dialog);
-  lv_obj_set_size(btn_auto, 340, 50);
-  lv_obj_set_pos(btn_auto, 0, 70);
-  lv_obj_set_style_bg_color(btn_auto, lv_color_hex(COLOR_MSUNPV_AUTO), 0);
-  lv_obj_set_style_radius(btn_auto, 10, 0);
-  lv_obj_add_event_cb(btn_auto, msunpv_cmd_auto, LV_EVENT_CLICKED, NULL);
-  
-  lv_obj_t *label_auto = lv_label_create(btn_auto);
-  lv_label_set_text(label_auto, "AUTO - Gestion automatique");
-  lv_obj_set_style_text_font(label_auto, &lv_font_montserrat_16, 0);
-  lv_obj_center(label_auto);
-  
-  // Bouton MANU
-  lv_obj_t *btn_manu = lv_btn_create(dialog);
-  lv_obj_set_size(btn_manu, 340, 50);
-  lv_obj_set_pos(btn_manu, 0, 130);
-  lv_obj_set_style_bg_color(btn_manu, lv_color_hex(COLOR_MSUNPV_MANU), 0);
-  lv_obj_set_style_radius(btn_manu, 10, 0);
-  lv_obj_add_event_cb(btn_manu, msunpv_cmd_manu, LV_EVENT_CLICKED, NULL);
-  
-  lv_obj_t *label_manu = lv_label_create(btn_manu);
-  lv_label_set_text(label_manu, "MANU - Marche forcee");
-  lv_obj_set_style_text_font(label_manu, &lv_font_montserrat_16, 0);
-  lv_obj_center(label_manu);
-  
-  // Bouton OFF
-  lv_obj_t *btn_off = lv_btn_create(dialog);
-  lv_obj_set_size(btn_off, 340, 50);
-  lv_obj_set_pos(btn_off, 0, 190);
-  lv_obj_set_style_bg_color(btn_off, lv_color_hex(COLOR_MSUNPV_OFF), 0);
-  lv_obj_set_style_radius(btn_off, 10, 0);
-  lv_obj_add_event_cb(btn_off, msunpv_cmd_off, LV_EVENT_CLICKED, NULL);
-  
-  lv_obj_t *label_off = lv_label_create(btn_off);
-  lv_label_set_text(label_off, "OFF - Arret");
-  lv_obj_set_style_text_color(label_off, lv_color_hex(0x000000), 0);
-  lv_obj_set_style_text_font(label_off, &lv_font_montserrat_16, 0);
-  lv_obj_center(label_off);
-  
-  // Bouton Fermer
-  lv_obj_t *btn_close = lv_btn_create(dialog);
-  lv_obj_set_size(btn_close, 340, 40);
-  lv_obj_set_pos(btn_close, 0, 255);
-  lv_obj_set_style_bg_color(btn_close, lv_color_hex(0x374151), 0);
-  lv_obj_set_style_radius(btn_close, 10, 0);
-  lv_obj_add_event_cb(btn_close, msunpv_close_popup, LV_EVENT_CLICKED, NULL);
-  
-  lv_obj_t *label_close = lv_label_create(btn_close);
-  lv_label_set_text(label_close, "Fermer");
-  lv_obj_set_style_text_font(label_close, &lv_font_montserrat_16, 0);
-  lv_obj_center(label_close);
-
-  msunpv_autoclose_timer = lv_timer_create(msunpv_autoclose_cb, 10000, NULL);
-  lv_timer_set_repeat_count(msunpv_autoclose_timer, 1);
-}
+// M'SunPV callbacks retirés (Enphase V2)
 
 static void weather_autoclose_cb(lv_timer_t * t) {
   (void)t;
@@ -884,7 +712,7 @@ void createMainScreen() {
   lv_obj_set_style_border_width(cumulus_header, 0, 0);
   lv_obj_set_style_pad_all(cumulus_header, 0, 0);
   lv_obj_add_flag(cumulus_header, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_event_cb(cumulus_header, msunpv_open_popup, LV_EVENT_CLICKED, NULL);
+  // msunpv_open_popup retiré (Enphase V2)
   
   // Titre CUMULUS (gauche)
   lv_obj_t *label_thermo_title = lv_label_create(cumulus_header);
@@ -893,17 +721,7 @@ void createMainScreen() {
   lv_obj_set_style_text_font(label_thermo_title, &lv_font_montserrat_16, 0);
   lv_obj_align(label_thermo_title, LV_ALIGN_LEFT_MID, 0, 0);
   
-  // Badge statut (droite) - V3.1 - Décalé de 28px à gauche
-  label_msunpv_status = lv_label_create(cumulus_header);
-  lv_label_set_text(label_msunpv_status, "AUTO");
-  lv_obj_set_style_text_color(label_msunpv_status, lv_color_hex(0xffffff), 0);
-  lv_obj_set_style_text_font(label_msunpv_status, &lv_font_montserrat_16, 0);
-  lv_obj_set_style_bg_color(label_msunpv_status, lv_color_hex(COLOR_MSUNPV_AUTO), 0);
-  lv_obj_set_style_bg_opa(label_msunpv_status, LV_OPA_COVER, 0);
-  lv_obj_set_style_radius(label_msunpv_status, 6, 0);
-  lv_obj_set_style_pad_hor(label_msunpv_status, 8, 0);
-  lv_obj_set_style_pad_ver(label_msunpv_status, 2, 0);
-  lv_obj_align(label_msunpv_status, LV_ALIGN_RIGHT_MID, -28, 0);
+  // Badge M'SunPV retiré (Enphase V2)
   
   // Container horizontal : Barre + Infos
   lv_obj_t *cumulus_container = lv_obj_create(card_right);
@@ -1588,17 +1406,7 @@ void createSettingsScreen() {
   lv_obj_set_style_text_font(label_infos_enphase_val, &lv_font_montserrat_16, 0);
   lv_obj_align(label_infos_enphase_val, LV_ALIGN_TOP_RIGHT, 0, 114);
   
-  // M'SunPV (vert)
-  lv_obj_t *lbl_ms = lv_label_create(card_infos);
-  lv_label_set_text(lbl_ms, "M'SunPV:");
-  lv_obj_set_style_text_color(lbl_ms, lv_color_hex(0x22c55e), 0);
-  lv_obj_set_style_text_font(lbl_ms, &lv_font_montserrat_16, 0);
-  lv_obj_set_pos(lbl_ms, 0, 152);
-  label_infos_msunpv_val = lv_label_create(card_infos);
-  lv_label_set_text(label_infos_msunpv_val, "--");
-  lv_obj_set_style_text_color(label_infos_msunpv_val, lv_color_hex(0xffffff), 0);
-  lv_obj_set_style_text_font(label_infos_msunpv_val, &lv_font_montserrat_16, 0);
-  lv_obj_align(label_infos_msunpv_val, LV_ALIGN_TOP_RIGHT, 0, 152);
+  // M'SunPV retiré (Enphase V2)
   
   // MQTT (blanc comme IP)
   lv_obj_t *lbl_mq = lv_label_create(card_infos);
@@ -1708,7 +1516,6 @@ void updateSettingsUI() {
   extern String config_shelly1_ip;
   extern String config_shelly2_ip;
   extern String config_enphase_ip;
-  extern String config_msunpv_ip;
   extern String config_mqtt_ip;
   extern int config_mqtt_port;
   char buf[120];
@@ -1724,7 +1531,6 @@ void updateSettingsUI() {
   if (label_infos_shelly1_val) lv_label_set_text(label_infos_shelly1_val, config_shelly1_ip.length() ? config_shelly1_ip.c_str() : "non configure");
   if (label_infos_shelly2_val) lv_label_set_text(label_infos_shelly2_val, config_shelly2_ip.length() ? config_shelly2_ip.c_str() : "non configure");
   if (label_infos_enphase_val) lv_label_set_text(label_infos_enphase_val, config_enphase_ip.length() ? config_enphase_ip.c_str() : "non configure");
-  if (label_infos_msunpv_val) lv_label_set_text(label_infos_msunpv_val, config_msunpv_ip.length() ? config_msunpv_ip.c_str() : "non configure");
   if (label_infos_mqtt_val) {
     snprintf(buf, sizeof(buf), "%s:%d", config_mqtt_ip.length() ? config_mqtt_ip.c_str() : "--", config_mqtt_port);
     lv_label_set_text(label_infos_mqtt_val, buf);
@@ -1983,27 +1789,7 @@ void updateMainUI() {
     }
   }
   
-  // ============================================
-  // MISE À JOUR BADGE M'SunPV (V3.0)
-  // ============================================
-  lv_label_set_text(label_msunpv_status, msunpv_status.c_str());
-  
-  uint32_t badgeColor;
-  if (msunpv_status == "AUTO") {
-    badgeColor = COLOR_MSUNPV_AUTO;  // Vert
-  } else if (msunpv_status == "MANU") {
-    badgeColor = COLOR_MSUNPV_MANU;  // Bleu
-  } else {
-    badgeColor = COLOR_MSUNPV_OFF;   // Blanc
-  }
-  lv_obj_set_style_bg_color(label_msunpv_status, lv_color_hex(badgeColor), 0);
-  
-  // Texte noir si OFF (blanc)
-  if (msunpv_status == "OFF") {
-    lv_obj_set_style_text_color(label_msunpv_status, lv_color_hex(0x000000), 0);
-  } else {
-    lv_obj_set_style_text_color(label_msunpv_status, lv_color_hex(0xffffff), 0);
-  }
+  // Badge M'SunPV retiré (Enphase V2)
 }
 
 // V15.0 - Mise à jour écran Enphase (données Envoy + météo footer)
@@ -2190,187 +1976,6 @@ void updateEnphaseUI() {
   if (led_ep_shelly) lv_obj_set_style_img_opa(led_ep_shelly, LV_OPA_40, 0);
 }
 
-// M'SunPV - Mise à jour écran (même layout qu'Enphase, date verte, données M'SunPV)
-void updateMSunPVUI() {
-  char buffer[64];
-  extern int dateFormatIndex;
-  const char* daysFull[] = {"Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"};
-  const char* daysShort[] = {"Dim.", "Lun.", "Mar.", "Mer.", "Jeu.", "Ven.", "Sam."};
-  const char* months[] = {"Jan.", "Fev.", "Mar.", "Avr.", "Mai", "Juin", "Juil.", "Aout", "Sep.", "Oct.", "Nov.", "Dec."};
-  
-  time_t now = time(NULL);
-  struct tm *timeinfo = localtime(&now);
-  
-  switch(dateFormatIndex) {
-    case 0:
-      sprintf(buffer, "%s %02d/%02d/%02d",
-              daysFull[timeinfo->tm_wday], timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year % 100);
-      break;
-    case 1:
-      sprintf(buffer, "%s %d %s %d",
-              daysShort[timeinfo->tm_wday], timeinfo->tm_mday, months[timeinfo->tm_mon], timeinfo->tm_year + 1900);
-      break;
-    case 2:
-      sprintf(buffer, "%02d/%02d/%04d",
-              timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year + 1900);
-      break;
-    case 3:
-      sprintf(buffer, "%s %02d/%02d/%04d",
-              daysShort[timeinfo->tm_wday], timeinfo->tm_mday, timeinfo->tm_mon + 1, timeinfo->tm_year + 1900);
-      break;
-    default:
-      sprintf(buffer, "%s %d %s %d",
-              daysShort[timeinfo->tm_wday], timeinfo->tm_mday, months[timeinfo->tm_mon], timeinfo->tm_year + 1900);
-      break;
-  }
-  lv_label_set_text(label_ep_date, buffer);
-  lv_obj_set_style_text_color(label_ep_date, lv_color_hex(0x22c55e), 0);  // Vert M'SunPV
-  
-  if (label_ep_prod_jour_title) lv_label_set_text(label_ep_prod_jour_title, "ROUTAGE");
-  if (label_ep_prod_jour_unit) lv_label_set_text(label_ep_prod_jour_unit, "%");
-  
-  sprintf(buffer, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
-  lv_label_set_text(label_ep_time, buffer);
-  
-  // Carte gauche: Prod PV (W), Conso maison (W)
-  sprintf(buffer, "%.0f", msunpv_powPV);
-  lv_label_set_text(label_ep_prod, buffer);
-  lv_obj_set_style_text_color(label_ep_prod, lv_color_hex(COLOR_PROD), 0);
-  
-  sprintf(buffer, "%.0f", msunpv_powReso);
-  lv_label_set_text(label_ep_conso, buffer);
-  lv_obj_set_style_text_color(label_ep_conso, lv_color_hex(COLOR_CONSO), 0);
-  
-  // Carte droite: ROUTAGE (OUTBAL %), CONSO JOUR (kWh)
-  sprintf(buffer, "%d", msunpv_outBal);
-  lv_label_set_text(label_ep_prod_jour, buffer);
-  lv_obj_set_style_text_color(label_ep_prod_jour, lv_color_hex(COLOR_PROD), 0);
-  
-  sprintf(buffer, "%.1f", msunpv_enConso / 1000.0f);
-  lv_label_set_text(label_ep_conso_jour, buffer);
-  
-  // Zone flux: gauche = Prod PV (W), droite = Conso maison (W)
-  if (zone_flow_left_ep && img_arrow_pv_house_ep && img_arrow_house_grid_ep && label_flow_pv_val_ep && label_flow_grid_val_ep && img_flow_reseau_ep) {
-    float prod_w = msunpv_powPV;
-    float conso_w = msunpv_powReso;
-    bool pv_arrow_visible = (prod_w > (float)FLOW_THRESHOLD_PV_W);
-    
-    sprintf(buffer, "%d W", (int)(prod_w + 0.5f));
-    if (pv_arrow_visible) {
-      lv_img_set_src(img_arrow_pv_house_ep, &icoflechedroiteverte);
-      lv_obj_remove_flag(img_arrow_pv_house_ep, LV_OBJ_FLAG_HIDDEN);
-      lv_label_set_text(label_flow_pv_val_ep, buffer);
-      lv_obj_remove_flag(label_flow_pv_val_ep, LV_OBJ_FLAG_HIDDEN);
-    } else {
-      lv_obj_add_flag(img_arrow_pv_house_ep, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_add_flag(label_flow_pv_val_ep, LV_OBJ_FLAG_HIDDEN);
-    }
-    
-    // Flèche Maison ↔ Réseau : Import = réseau → maison (flèche gauche orange), Export = maison → réseau (flèche droite verte)
-    lv_img_set_src(img_flow_reseau_ep, &reseau_electrique);
-    #define FLOW_MSUNPV_THRESHOLD_W 5.f
-    if (conso_w > prod_w + FLOW_MSUNPV_THRESHOLD_W) {
-      // Import : flux du réseau vers la maison → flèche gauche (orange)
-      lv_img_set_src(img_arrow_house_grid_ep, &icoflechegaucheorange);
-      lv_obj_remove_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_remove_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
-      sprintf(buffer, "%d W", (int)(conso_w - prod_w + 0.5f));
-      lv_label_set_text(label_flow_grid_val_ep, buffer);
-    } else if (conso_w < prod_w - FLOW_MSUNPV_THRESHOLD_W) {
-      // Export : flux de la maison vers le réseau → flèche droite (verte)
-      lv_img_set_src(img_arrow_house_grid_ep, &icoflechedroiteverte);
-      lv_obj_remove_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_remove_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
-      sprintf(buffer, "%d W", (int)(prod_w - conso_w + 0.5f));
-      lv_label_set_text(label_flow_grid_val_ep, buffer);
-    } else {
-      // Auto : conso ≈ prod, pas de flux net
-      lv_obj_add_flag(img_arrow_house_grid_ep, LV_OBJ_FLAG_HIDDEN);
-      lv_obj_add_flag(label_flow_grid_val_ep, LV_OBJ_FLAG_HIDDEN);
-    }
-  }
-  
-  // Badge: Conso maison vs Prod PV → Import / Auto / Export
-  if (obj_flow_state_ep && label_flow_state_ep) {
-    float prod_w = msunpv_powPV;
-    float conso_w = msunpv_powReso;
-    #define FLOW_STATE_THRESHOLD_W 5.f
-    if (conso_w > prod_w + FLOW_STATE_THRESHOLD_W) {
-      lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0xd97706), 0);
-      lv_label_set_text(label_flow_state_ep, "Import");
-    } else if (conso_w < prod_w - FLOW_STATE_THRESHOLD_W) {
-      lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0x0d9488), 0);
-      lv_label_set_text(label_flow_state_ep, "Export");
-    } else {
-      lv_obj_set_style_bg_color(obj_flow_state_ep, lv_color_hex(0x16a34a), 0);
-      lv_label_set_text(label_flow_state_ep, "Auto");
-    }
-  }
-  
-  // Footer météo (identique Enphase)
-  lv_label_set_text(label_ep_weather_city, weather_city.c_str());
-  lv_img_set_src(img_ep_weather_icon, weather_getIconFromCode(weather_code));
-  sprintf(buffer, "%.0f°C", weather_temp);
-  lv_label_set_text(label_ep_weather_temp, buffer);
-  
-  const char* daysShort3[] = {"Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"};
-  struct tm midnight = *timeinfo;
-  midnight.tm_hour = 0;
-  midnight.tm_min = 0;
-  midnight.tm_sec = 0;
-  time_t midnight_ts = mktime(&midnight);
-  for (int i = 0; i < 5; i++) {
-    time_t day_ts = midnight_ts + (time_t)(1 + i) * 86400;
-    struct tm *day_tm = localtime(&day_ts);
-    if (day_tm) {
-      lv_label_set_text(label_ep_weather_day[i], daysShort3[day_tm->tm_wday]);
-    } else {
-      lv_label_set_text(label_ep_weather_day[i], "-");
-    }
-    int idx = i + 1;
-    if (idx < 6 && weather_forecast_codes[idx] > 0) {
-      lv_img_set_src(img_ep_weather_icon_day[i], weather_getIconFromCode(weather_forecast_codes[idx]));
-    }
-    if (idx < 6) {
-      sprintf(buffer, "%d°", weather_forecast_temps[idx]);
-      lv_label_set_text(label_ep_weather_temp_day[i], buffer);
-    } else {
-      lv_label_set_text(label_ep_weather_temp_day[i], "--°");
-    }
-  }
-  
-  if (tempo_enabled) {
-    uint32_t colorToday = 0xffffff;
-    if (tempo_today_color == "Bleu") colorToday = 0x3b82f6;
-    else if (tempo_today_color == "Blanc") colorToday = 0x94a3b8;
-    else if (tempo_today_color == "Rouge") colorToday = 0xef4444;
-    lv_obj_set_style_text_color(label_ep_weather_city, lv_color_hex(colorToday), 0);
-    uint32_t colorTomorrow = 0xd1d5db;
-    if (tempo_tomorrow_pending) colorTomorrow = 0x22c55e;
-    else if (tempo_tomorrow_color == "Bleu") colorTomorrow = 0x3b82f6;
-    else if (tempo_tomorrow_color == "Blanc") colorTomorrow = 0x94a3b8;
-    else if (tempo_tomorrow_color == "Rouge") colorTomorrow = 0xef4444;
-    lv_obj_set_style_text_color(label_ep_weather_day[0], lv_color_hex(colorTomorrow), 0);
-  } else {
-    lv_obj_set_style_text_color(label_ep_weather_city, lv_color_hex(0xffffff), 0);
-    lv_obj_set_style_text_color(label_ep_weather_day[0], lv_color_hex(0xd1d5db), 0);
-  }
-  
-  extern bool wifiConnected;
-  extern bool mqttConnected;
-  extern bool shelly1_connected;
-  extern bool shelly2_connected;
-  extern String config_shelly1_ip;
-  extern String config_shelly2_ip;
-  
-  lv_img_set_src(led_ep_wifi, wifiConnected ? &wifi_cercle_vert : &wifi_barre_oblique);
-  lv_img_set_src(led_ep_mqtt, mqttConnected ? &mqtt_png : &mqtt_png_gris);
-  bool shelly_ok = (config_shelly1_ip.length() == 0 || shelly1_connected) && (config_shelly2_ip.length() == 0 || shelly2_connected);
-  lv_img_set_src(led_ep_shelly, shelly_ok ? &Shelly32 : &Shelly32_gris);
-  lv_img_set_src(led_ep_enphase, enphase_connected ? &Enphase_logo : &Enphase_logo_gris);
-  // Mode M'SunPV : opacité normale pour MQTT et Shelly
-  if (led_ep_mqtt) lv_obj_set_style_img_opa(led_ep_mqtt, LV_OPA_COVER, 0);
-  if (led_ep_shelly) lv_obj_set_style_img_opa(led_ep_shelly, LV_OPA_COVER, 0);
-}
+// updateMSunPVUI retiré (Enphase V2)
 
 #endif

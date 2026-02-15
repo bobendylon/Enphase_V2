@@ -202,7 +202,7 @@ void handleData();
 void handleFormattedDate();  // V3.4
 void handleUpdate();
 void handleDoUpdate();
-void handleAlarmSet();
+// handleAlarmSet retiré (Enphase V2)
 // handleStatsWeb() est maintenant dans module_stats (stats_handleWeb)
 void handleInfoWeb();
 void handleSettingsWeb();
@@ -611,8 +611,7 @@ void setup() {
   server.on("/saveDateFormat", HTTP_POST, handleSaveDateFormat);
   server.on("/saveBrightness", HTTP_POST, handleSaveBrightness);
   server.on("/saveTempoConfig", HTTP_POST, handleSaveTempoConfig);
-  // V12.5 - Alarme
-  server.on("/alarm/set", handleAlarmSet);
+  // Alarme retirée (Enphase V2)
   // V3.2 - Nouvelles routes configuration
   // V11.0 - MQTT (Module)
   server.on("/mqtt", []() { mqtt_handleConfig(&server); });
@@ -1152,151 +1151,7 @@ void handleRoot() {
     .person-pill.absent .person-name {
       color: #9ca3af;
     }
-    /* ============================================ */
-    /* ALARME - STYLE 1 : ICÔNE + DROPDOWN (2 BOUTONS) */
-    /* ============================================ */
-    .alarm-section {
-      position: relative;
-      margin-left: 8px;
-    }
-    .alarm-icon-container {
-      position: relative;
-    }
-    .alarm-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      border: 2px solid transparent;
-    }
-    .alarm-icon:hover {
-      transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    .alarm-icon.off {
-      background: rgba(209, 213, 219, 0.3);
-      border-color: #d1d5db;
-    }
-    .alarm-icon.on {
-      background: linear-gradient(135deg, rgba(254, 226, 226, 0.9) 0%, rgba(254, 202, 202, 0.9) 100%);
-      border-color: #dc2626;
-    }
-    .alarm-icon.on .icon {
-      animation: shake 0.5s ease-in-out infinite;
-    }
-    @keyframes shake {
-      0%, 100% { transform: rotate(0deg); }
-      25% { transform: rotate(-10deg); }
-      75% { transform: rotate(10deg); }
-    }
-    .alarm-dropdown {
-      position: absolute;
-      top: 50px;
-      right: 0;
-      background: rgba(41, 37, 36, 0.98);
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-      padding: 20px;
-      min-width: 240px;
-      z-index: 1000;
-      opacity: 0;
-      visibility: hidden;
-      transform: translateY(-10px);
-      transition: all 0.3s ease;
-      border: 1px solid rgba(251, 191, 36, 0.3);
-    }
-    .alarm-dropdown.show {
-      opacity: 1;
-      visibility: visible;
-      transform: translateY(0);
-    }
-    .alarm-dropdown::before {
-      content: '';
-      position: absolute;
-      top: -8px;
-      right: 15px;
-      width: 16px;
-      height: 16px;
-      background: rgba(41, 37, 36, 0.98);
-      transform: rotate(45deg);
-      box-shadow: -2px -2px 4px rgba(0,0,0,0.2);
-      border-left: 1px solid rgba(251, 191, 36, 0.3);
-      border-top: 1px solid rgba(251, 191, 36, 0.3);
-    }
-    .dropdown-header {
-      font-size: 16px;
-      font-weight: 600;
-      color: #fbbf24;
-      margin-bottom: 15px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid rgba(251, 191, 36, 0.2);
-    }
-    .alarm-state-display {
-      text-align: center;
-      margin-bottom: 15px;
-    }
-    .state-label {
-      font-size: 12px;
-      color: #9ca3af;
-      text-transform: uppercase;
-      margin-bottom: 5px;
-    }
-    .state-value {
-      font-size: 18px;
-      font-weight: 700;
-    }
-    .state-value.off {
-      color: #9ca3af;
-    }
-    .state-value.on {
-      color: #ef4444;
-    }
-    .buttons-container {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-top: 15px;
-    }
-    .alarm-btn {
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      min-height: 44px;
-    }
-    .alarm-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .alarm-btn:active {
-      transform: translateY(0);
-    }
-    .btn-activate {
-      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-      color: white;
-    }
-    .btn-activate:hover {
-      background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
-    }
-    .btn-deactivate {
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      color: white;
-    }
-    .btn-deactivate:hover {
-      background: linear-gradient(135deg, #059669 0%, #047857 100%);
-    }
+    /* Alarme retirée (Enphase V2) */
     /* Media queries pour mobile */
     @media (max-width: 768px) {
       body { padding: 12px; }
@@ -1325,8 +1180,6 @@ void handleRoot() {
       .person-pill { padding: 5px 12px; font-size: 0.7em; }
       .person-pill .emoji { font-size: 18px; }
       .person-name { font-size: 11px; }
-      .alarm-icon { width: 35px; height: 35px; font-size: 20px; }
-      .alarm-dropdown { min-width: 200px; padding: 15px; right: -10px; }
     }
     @media (max-width: 480px) {
       body { padding: 10px; }
@@ -1414,9 +1267,6 @@ void handleRoot() {
       .msunpv-controls { gap: 8px; }
       .msunpv-status { padding: 6px 14px; font-size: 0.85em; }
       .led { width: 35px; height: 35px; }
-      .alarm-icon { width: 32px; height: 32px; font-size: 18px; }
-      .alarm-dropdown { min-width: 180px; padding: 12px; right: -20px; top: 45px; }
-      .alarm-btn { padding: 10px; font-size: 12px; min-height: 40px; }
       .presence-container { gap: 4px; }
       .temp-card-text { font-size: 0.9em; }
     }
@@ -1469,24 +1319,6 @@ void handleRoot() {
               <span class="emoji">👦</span>
               <span class="person-name">Victor</span>
               <span class="status-dot absent"></span>
-            </div>
-            <div class="alarm-section">
-              <div class="alarm-icon-container">
-                <div class="alarm-icon off" id="alarmIcon" onclick="toggleAlarmDropdown()">
-                  <span class="icon">🔔</span>
-                </div>
-                <div class="alarm-dropdown" id="alarmDropdown">
-                  <div class="dropdown-header" id="alarmHeader">🔔 ALARME</div>
-                  <div class="alarm-state-display">
-                    <div class="state-label">État actuel</div>
-                    <div class="state-value off" id="alarmStateValue">DÉSACTIVÉE</div>
-                  </div>
-                  <div class="buttons-container">
-                    <button class="alarm-btn btn-activate" id="alarmBtnActivate">🚨 ACTIVER</button>
-                    <button class="alarm-btn btn-deactivate" id="alarmBtnDeactivate">✅ DÉSACTIVER</button>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -1600,11 +1432,6 @@ void handleRoot() {
             }
           }
           
-          // Mise à jour de l'alarme
-          if (d.alarmState !== undefined) {
-            updateAlarmState(d.alarmState);
-          }
-          
           const led = document.getElementById('led');
           led.className = 'led ' + (d.ledGreen ? 'led-green' : 'led-red');
           
@@ -1642,170 +1469,6 @@ void handleRoot() {
       
       document.getElementById('date').textContent = dayName + ' ' + dayNum + ' ' + monthName + ' ' + year;
     }
-    
-    // Fonction pour ouvrir/fermer le dropdown
-    function toggleAlarmDropdown() {
-      const dropdown = document.getElementById('alarmDropdown');
-      if (dropdown) {
-        dropdown.classList.toggle('show');
-      }
-    }
-    
-    // Fonction pour fermer le dropdown
-    function closeAlarmDropdown() {
-      const dropdown = document.getElementById('alarmDropdown');
-      if (dropdown) {
-        dropdown.classList.remove('show');
-      }
-    }
-    
-    // Fonction pour mettre à jour l'affichage de l'alarme
-    function updateAlarmState(isOn) {
-      const icon = document.getElementById('alarmIcon');
-      const iconSpan = icon ? icon.querySelector('.icon') : null;
-      const header = document.getElementById('alarmHeader');
-      const stateValue = document.getElementById('alarmStateValue');
-      
-      if (isOn) {
-        if (icon) {
-          icon.classList.remove('off');
-          icon.classList.add('on');
-        }
-        if (iconSpan) iconSpan.textContent = '🚨';
-        if (header) header.textContent = '🚨 ALARME';
-        if (stateValue) {
-          stateValue.textContent = 'ACTIVÉE';
-          stateValue.classList.remove('off');
-          stateValue.classList.add('on');
-        }
-      } else {
-        if (icon) {
-          icon.classList.remove('on');
-          icon.classList.add('off');
-        }
-        if (iconSpan) iconSpan.textContent = '🔔';
-        if (header) header.textContent = '🔔 ALARME';
-        if (stateValue) {
-          stateValue.textContent = 'DÉSACTIVÉE';
-          stateValue.classList.remove('on');
-          stateValue.classList.add('off');
-        }
-      }
-    }
-    
-    // Gestion des boutons alarme
-    document.addEventListener('DOMContentLoaded', function() {
-      const btnActivate = document.getElementById('alarmBtnActivate');
-      const btnDeactivate = document.getElementById('alarmBtnDeactivate');
-      
-      console.log('[Alarme] Initialisation - btnActivate:', btnActivate ? 'trouvé' : 'NON TROUVÉ');
-      console.log('[Alarme] Initialisation - btnDeactivate:', btnDeactivate ? 'trouvé' : 'NON TROUVÉ');
-      
-      if (btnActivate) {
-        btnActivate.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          console.log('[Alarme] Bouton Activer cliqué');
-          
-          // S'assurer que le dropdown reste ouvert pendant le traitement
-          const dropdown = document.getElementById('alarmDropdown');
-          if (dropdown) {
-            dropdown.classList.add('show');
-          }
-          
-          fetch('/alarm/set?state=ON')
-            .then(r => {
-              console.log('[Alarme] Réponse HTTP reçue:', r.status);
-              return r.json();
-            })
-            .then(data => {
-              console.log('[Alarme] Données reçues:', JSON.stringify(data));
-              if (data.success) {
-                console.log('[Alarme] Commande ACTIVER envoyée avec succès');
-                // Fermer le dropdown après un petit délai pour s'assurer que la requête est bien partie
-                setTimeout(function() {
-                  closeAlarmDropdown();
-                }, 100);
-                // L'état sera mis à jour automatiquement par /data
-              } else {
-                console.error('Erreur activation alarme:', data.error);
-              }
-            })
-            .catch(e => {
-              console.error('Erreur fetch:', e);
-            });
-          
-          return false;
-        }, true);  // Utiliser capture phase pour intercepter avant les autres listeners
-      } else {
-        console.error('[Alarme] ERREUR: Bouton Activer non trouvé !');
-      }
-      
-      if (btnDeactivate) {
-        btnDeactivate.addEventListener('click', function(e) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          console.log('[Alarme] Bouton Désactiver cliqué');
-          
-          // S'assurer que le dropdown reste ouvert pendant le traitement
-          const dropdown = document.getElementById('alarmDropdown');
-          if (dropdown) {
-            dropdown.classList.add('show');
-          }
-          
-          fetch('/alarm/set?state=OFF')
-            .then(r => {
-              console.log('[Alarme] Réponse HTTP reçue:', r.status);
-              return r.json();
-            })
-            .then(data => {
-              console.log('[Alarme] Données reçues:', JSON.stringify(data));
-              if (data.success) {
-                console.log('[Alarme] Commande DÉSACTIVER envoyée avec succès');
-                // Fermer le dropdown après un petit délai pour s'assurer que la requête est bien partie
-                setTimeout(function() {
-                  closeAlarmDropdown();
-                }, 100);
-                // L'état sera mis à jour automatiquement par /data
-              } else {
-                console.error('Erreur désactivation alarme:', data.error);
-              }
-            })
-            .catch(e => {
-              console.error('Erreur fetch:', e);
-            });
-          
-          return false;
-        }, true);  // Utiliser capture phase pour intercepter avant les autres listeners
-      } else {
-        console.error('[Alarme] ERREUR: Bouton Désactiver non trouvé !');
-      }
-      
-      // Fermer dropdown si clic dehors (mais pas sur les boutons)
-      document.addEventListener('click', function(event) {
-        const alarmSection = document.querySelector('.alarm-section');
-        const btnActivate = document.getElementById('alarmBtnActivate');
-        const btnDeactivate = document.getElementById('alarmBtnDeactivate');
-        
-        // Ne pas fermer si on clique sur les boutons
-        if (event.target === btnActivate || event.target === btnDeactivate) {
-          return;
-        }
-        
-        // Ne pas fermer si on clique dans le dropdown
-        const dropdown = document.getElementById('alarmDropdown');
-        if (dropdown && dropdown.contains(event.target)) {
-          return;
-        }
-        
-        // Fermer si on clique ailleurs
-        if (alarmSection && !alarmSection.contains(event.target)) {
-          closeAlarmDropdown();
-        }
-      });
-    });
     
     updateData();
     updateTime();
@@ -1870,7 +1533,7 @@ void handleData() {
   json += "\"presenceFrancine\":" + String(presenceFrancine ? "true" : "false") + ",";
   json += "\"victorEnabled\":" + String(config_victor_enabled ? "true" : "false") + ",";
   json += "\"presenceVictor\":" + String(presenceVictor ? "true" : "false") + ",";
-  json += "\"alarmState\":" + String(alarmState ? "true" : "false") + ",";
+  // alarmState retiré (Enphase V2)
   json += "\"ledGreen\":" + String(ledLockedGreen ? "true" : "false") + ",";
   json += "\"wifiConnected\":" + String(wifiConnected ? "true" : "false") + ",";
   json += "\"mqttConnected\":" + String(mqttConnected ? "true" : "false") + ",";
@@ -2209,39 +1872,7 @@ void handleDoUpdate() {
   ESP.restart();
 }
 
-// Handler Alarme - Changer l'état
-void handleAlarmSet() {
-  extern String config_topic_alarm_command;
-  extern bool alarmState;
-  
-  if (server.hasArg("state")) {
-    String state = server.arg("state");
-    addLogf("[Alarme] Requête reçue: state='%s'", state.c_str());
-    
-    bool newState = (state.equalsIgnoreCase("ON") || state.equals("1"));
-    addLogf("[Alarme] État calculé: %s (ON=1, OFF=0)", newState ? "ACTIVER" : "DÉSACTIVER");
-    
-    // Publier sur MQTT (topic de commande)
-    if (mqttClient.connected()) {
-      String payload = newState ? "1" : "0";
-      bool published = mqttClient.publish(config_topic_alarm_command.c_str(), payload.c_str());
-      addLogf("[Alarme] Commande envoyée: %s → Topic: %s, Payload: %s, Published: %s", 
-              newState ? "ACTIVER" : "DÉSACTIVER", 
-              config_topic_alarm_command.c_str(), 
-              payload.c_str(),
-              published ? "OK" : "ÉCHEC");
-      
-      server.send(200, "application/json", 
-        "{\"success\":true,\"state\":\"" + String(newState ? "ON" : "OFF") + "\"}");
-    } else {
-      addLog("[Alarme] ERREUR: MQTT non connecté");
-      server.send(500, "application/json", "{\"success\":false,\"error\":\"MQTT not connected\"}");
-    }
-  } else {
-    addLog("[Alarme] ERREUR: Paramètre 'state' manquant");
-    server.send(400, "application/json", "{\"success\":false,\"error\":\"Missing parameter\"}");
-  }
-}
+// handleAlarmSet retiré (Enphase V2)
 
 // MODE NUIT - Gestion luminosité écran
 void applyNightMode() {
@@ -2585,8 +2216,7 @@ void handleExportConfig() {
   doc[PREF_TOPIC_PRESENCE_FRANCINE] = config_topic_presence_francine;
   doc[PREF_VICTOR_ENABLED] = config_victor_enabled ? "1" : "0";
   doc[PREF_TOPIC_PRESENCE_VICTOR] = config_topic_presence_victor;
-  doc[PREF_TOPIC_ALARM] = config_topic_alarm;
-  doc[PREF_TOPIC_ALARM_COMMAND] = config_topic_alarm_command;
+  // PREF_TOPIC_ALARM retirés (Enphase V2)
   doc[PREF_JSON_KEY_CABANE] = config_json_key_cabane;
   doc[PREF_JSON_KEY_WATER1] = config_json_key_water1;
   doc[PREF_JSON_KEY_WATER2] = config_json_key_water2;

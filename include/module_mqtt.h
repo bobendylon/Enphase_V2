@@ -30,7 +30,7 @@ extern float consoJour;
 extern bool presenceBen;
 extern bool presenceFrancine;
 extern bool presenceVictor;
-extern bool alarmState;
+// alarmState retiré (Enphase V2)
 
 // Variables exposées (extern) - Configuration (pour compatibilité)
 extern String config_mqtt_ip;
@@ -47,8 +47,7 @@ extern String config_topic_presence_ben;
 extern String config_topic_presence_francine;
 extern bool config_victor_enabled;
 extern String config_topic_presence_victor;
-extern String config_topic_alarm;
-extern String config_topic_alarm_command;
+// config_topic_alarm, config_topic_alarm_command retirés (Enphase V2)
 extern String config_json_key_cabane;
 extern String config_json_key_water1;
 extern String config_json_key_water2;

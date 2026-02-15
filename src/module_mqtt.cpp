@@ -72,7 +72,7 @@ float consoJour = 0;
 bool presenceBen = false;
 bool presenceFrancine = false;
 bool presenceVictor = false;
-bool alarmState = false;
+// alarmState retiré (Enphase V2)
 
 String config_mqtt_ip;
 int config_mqtt_port;
@@ -88,8 +88,7 @@ String config_topic_presence_ben;
 String config_topic_presence_francine;
 bool config_victor_enabled = false;
 String config_topic_presence_victor;
-String config_topic_alarm;
-String config_topic_alarm_command;
+// config_topic_alarm, config_topic_alarm_command retirés (Enphase V2)
 String config_json_key_cabane;
 String config_json_key_water1;
 String config_json_key_water2;
@@ -222,10 +221,7 @@ static void parseMqttMessage(String topic, String message) {
     presenceVictor = (message.equals("home"));
     addLogf("Présence Victor: %s", presenceVictor ? "home" : "not_home");
   }
-  else if (topic == config_topic_alarm) {
-    alarmState = (message.equals("1") || message.equals("ON") || message.equals("on"));
-    addLogf("Alarme: %s", alarmState ? "ACTIVÉE" : "DÉSACTIVÉE");
-  }
+  // Topic alarme retiré (Enphase V2)
 }
 
 // Callback MQTT (static)
@@ -289,7 +285,7 @@ void mqtt_reconnect() {
       if (config_victor_enabled) {
         mqttClient->subscribe(config_topic_presence_victor.c_str());
       }
-      mqttClient->subscribe(config_topic_alarm.c_str());
+      // config_topic_alarm retiré (Enphase V2)
       
       addLog("[V3.2] Souscriptions MQTT OK");
     } else {
@@ -330,8 +326,7 @@ void mqtt_loadConfig(Preferences* prefs) {
   config_topic_presence_francine = prefs->getString(PREF_TOPIC_PRESENCE_FRANCINE, DEFAULT_TOPIC_PRESENCE_FRANCINE);
   config_victor_enabled = (prefs->getString(PREF_VICTOR_ENABLED, "0") == "1");
   config_topic_presence_victor = prefs->getString(PREF_TOPIC_PRESENCE_VICTOR, DEFAULT_TOPIC_PRESENCE_VICTOR);
-  config_topic_alarm = prefs->getString(PREF_TOPIC_ALARM, DEFAULT_TOPIC_ALARM);
-  config_topic_alarm_command = prefs->getString(PREF_TOPIC_ALARM_COMMAND, DEFAULT_TOPIC_ALARM_COMMAND);
+  // config_topic_alarm retiré (Enphase V2)
   config_json_key_cabane = prefs->getString(PREF_JSON_KEY_CABANE, "");
   config_json_key_water1 = prefs->getString(PREF_JSON_KEY_WATER1, "");
   config_json_key_water2 = prefs->getString(PREF_JSON_KEY_WATER2, "");
@@ -360,8 +355,7 @@ void mqtt_saveConfig(Preferences* prefs) {
   prefs->putString(PREF_TOPIC_PRESENCE_FRANCINE, config_topic_presence_francine);
   prefs->putString(PREF_VICTOR_ENABLED, config_victor_enabled ? "1" : "0");
   prefs->putString(PREF_TOPIC_PRESENCE_VICTOR, config_topic_presence_victor);
-  prefs->putString(PREF_TOPIC_ALARM, config_topic_alarm);
-  prefs->putString(PREF_TOPIC_ALARM_COMMAND, config_topic_alarm_command);
+  // config_topic_alarm retiré (Enphase V2)
   prefs->putString(PREF_JSON_KEY_CABANE, config_json_key_cabane);
   prefs->putString(PREF_JSON_KEY_WATER1, config_json_key_water1);
   prefs->putString(PREF_JSON_KEY_WATER2, config_json_key_water2);
@@ -635,21 +629,7 @@ void mqtt_handleConfig(WebServer* server) {
         <div class="value-display" id="val_presence_victor">-</div>
       </div>
       
-      <div class="form-group">
-        <label>Topic Alarme (État)</label>
-        <input type="text" name="topic_alarm" value=")";
-  html += config_topic_alarm;
-  html += R"(" required>
-        <div class="value-display" style="color: #9ca3af; font-size: 0.8em;">Topic pour lire l'état (1 = Activée, 0 = Désactivée)</div>
-      </div>
-      
-      <div class="form-group">
-        <label>Topic Alarme (Commande)</label>
-        <input type="text" name="topic_alarm_command" value=")";
-  html += config_topic_alarm_command;
-  html += R"(" required>
-        <div class="value-display" style="color: #9ca3af; font-size: 0.8em;">Topic pour envoyer les commandes (1 = Activer, 0 = Désactiver)</div>
-      </div>
+      <!-- Topic Alarme retiré (Enphase V2) -->
       
       <button type="submit" class="btn">💾 Enregistrer et Redémarrer</button>
       <button type="button" class="btn btn-secondary" onclick="location.href='/'">❌ Annuler</button>
@@ -683,8 +663,7 @@ void mqtt_handleSaveConfig(WebServer* server) {
     config_topic_presence_francine = server->arg("topic_presence_francine");
     config_victor_enabled = server->hasArg("victor_enabled");
     config_topic_presence_victor = server->arg("topic_presence_victor").length() ? server->arg("topic_presence_victor") : String(DEFAULT_TOPIC_PRESENCE_VICTOR);
-    config_topic_alarm = server->arg("topic_alarm");
-    config_topic_alarm_command = server->arg("topic_alarm_command");
+    // config_topic_alarm retiré (Enphase V2)
     
     // Clés JSON configurables
     config_json_key_cabane = server->arg("json_key_cabane");

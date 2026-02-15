@@ -1740,7 +1740,7 @@ function upd(){
     document.getElementById('energyProd').textContent=(d.energy_produced!=null?d.energy_produced.toFixed(1):'0.0')+' kWh';
     document.getElementById('energyConso').textContent=(d.energy_imported!=null?d.energy_imported.toFixed(1):'0.0')+' kWh';
     var prod=(d.pact_prod!=null?d.pact_prod:0); var grid=(d.pact_grid!=null?d.pact_grid:0);
-    var colProd=prod>0?'#fbbf24':'#4b5563'; var colGrid=grid<0?'#22c55e':(grid>0?'#9ca3af':'#4b5563');
+    var colProd=prod>0?'#fbbf24':'#4b5563'; var colGrid=grid<0?'#22c55e':(grid>2000?'#ef4444':(grid>0?'#f59e0b':'#4b5563'));
     var flip=grid>0;
     document.getElementById('ch1').style.color=colProd; document.getElementById('ch2').style.color=colProd;
     document.getElementById('ch3').style.color=colGrid; document.getElementById('ch4').style.color=colGrid;

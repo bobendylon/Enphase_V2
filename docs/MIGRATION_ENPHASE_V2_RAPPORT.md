@@ -2,7 +2,7 @@
 
 **Projet :** Enphase_V2  
 **Source :** MSunPV_Monitor_V11_multi  
-**Dernière mise à jour :** 15 février 2025
+**Dernière mise à jour :** 15 février 2025 (session correction MQTT, CONSO, écoute)
 
 ---
 
@@ -65,7 +65,7 @@ Transformer le moniteur MSunPV multi-écrans en un affichage unique Enphase :
 | Page Config MQTT | `module_mqtt.cpp` | Simplifiée : broker uniquement (IP, port, user, pass) — route `/mqtt` |
 | User/Pass en NVS | `module_mqtt.cpp`, `config.h` | `config_mqtt_user`, `config_mqtt_pass` configurables depuis le web |
 | Connexion optionnelle | `module_mqtt.cpp` | Si IP vide → pas de tentative de connexion |
-| Config MQTT accessible | `main.cpp` | Lien prévu dans Réglages (`/enphase-reglages`) → **problème : l’utilisateur ne trouve plus où saisir les paramètres MQTT, et la connexion ne fonctionne pas avec les valeurs enregistrées** |
+| Config MQTT accessible | `main.cpp` | Lien Réglages et Enphase Monitor → `/mqtt`. **Résolu fév. 2025** : mqtt_loop() toujours actif, diagnostic et outil écoute ajoutés l’utilisateur ne trouve plus où saisir les paramètres MQTT, et la connexion ne fonctionne pas avec les valeurs enregistrées** |
 
 ### 2.7 Page d’accueil et données
 
@@ -73,6 +73,8 @@ Transformer le moniteur MSunPV multi-écrans en un affichage unique Enphase :
 |--------------|----------|--------|
 | Redirection `/` | `main.cpp` | Redirection 302 vers `/enphase-monitor` |
 | Stats | `module_stats.cpp` | Utilisation de `enphase_pact_prod` et `enphase_pact_conso` (module_enphase) |
+| Carte CONSO (W) alignée LVGL | `main.cpp` | Page Enphase Monitor : carte Conso = `enphase_pact_grid` (flux réseau), alignée avec flux Maison↔Réseau et écran LVGL |
+| Endpoint `/data` | `main.cpp` | Champ `conso` utilise `enphase_pact_grid` |
 
 ### 2.8 Verrouillage MDP supprimé
 
@@ -118,9 +120,9 @@ build_src_filter = +<*> -<weather_icons_NEW.cpp> -<module_msunpv.cpp> -<module_s
 
 ## 5. Prochaines étapes
 
-### 5.1 MQTT — priorité haute (bloquant)
+### 5.1 MQTT — résolu (février 2025)
 
-**Problème actuel :**
+**Corrections appliquées :**
 
 - **Aucun accès pour saisir les paramètres MQTT** : l’utilisateur ne trouve plus d’endroit pour entrer ou modifier l’IP du broker, le port, l’utilisateur et le mot de passe.
 - **Connexion impossible** : avec les paramètres déjà enregistrés en NVS, la connexion au broker ne fonctionne pas.
@@ -170,12 +172,11 @@ Créer ou adapter une page Info centralisant les informations de connexion :
 
 **Accès à Config MQTT :**
 
-- Chemin théorique : Enphase Monitor → Réglages → Config MQTT (broker, publication HA) → `/mqtt`.
-- Si le lien est absent ou ne fonctionne pas, c’est un bug à corriger en priorité (voir § 5.1).
+- Enphase Monitor → Réglages → Config MQTT → /mqtt. Ou page Info → Configurer MQTT (page Info = lien Configurer MQTT), c’est un bug Configurer MQTT depuis page Info.
 
 **Si la connexion au broker échoue :**
 
 1. Vérifier IP, port (1883), utilisateur et mot de passe sur la page Config MQTT.
 2. Sauvegarder et laisser l’ESP32 redémarrer.
-3. Consulter les messages `[MQTT]` sur la page Logs système (code d’erreur PubSubClient).
-4. Si IP vide : la connexion MQTT est désactivée (connexion optionnelle).
+3. Consulter les message d'erreur affiché sur la page Config MQTT. 4. Utiliser l'outil Test ecoute MQTT (code d’erreur , topic ex. shellies/#, cliquer Ecouter.
+5. Si IP vide : connexion MQTT désactivée (optionnel).

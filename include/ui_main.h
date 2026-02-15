@@ -1496,7 +1496,9 @@ void updateSettingsUI() {
   if (label_infos_ip_val) lv_label_set_text(label_infos_ip_val, ipAddress.length() ? ipAddress.c_str() : "--");
   if (label_infos_enphase_val) lv_label_set_text(label_infos_enphase_val, config_enphase_ip.length() ? config_enphase_ip.c_str() : "non configure");
   if (label_infos_mqtt_val) {
-    snprintf(buf, sizeof(buf), "%s:%d", config_mqtt_ip.length() ? config_mqtt_ip.c_str() : "--", config_mqtt_port);
+    extern bool mqttConnected;
+    const char* st = mqttConnected ? "Connecte" : "Deconnecte";
+    snprintf(buf, sizeof(buf), "%s (%s:%d)", st, config_mqtt_ip.length() ? config_mqtt_ip.c_str() : "--", config_mqtt_port);
     lv_label_set_text(label_infos_mqtt_val, buf);
   }
   
@@ -1921,8 +1923,8 @@ void updateEnphaseUI() {
   lv_img_set_src(led_ep_wifi, wifiConnected ? &wifi_cercle_vert : &wifi_barre_oblique);
   lv_img_set_src(led_ep_mqtt, mqttConnected ? &mqtt_png : &mqtt_png_gris);
   lv_img_set_src(led_ep_enphase, enphase_connected ? &Enphase_logo : &Enphase_logo_gris);
-  // Mode Enphase : griser MQTT
-  if (led_ep_mqtt) lv_obj_set_style_img_opa(led_ep_mqtt, LV_OPA_40, 0);
+  // MQTT : opacité pleine si connecté, 50% si déconnecté (état visible)
+  if (led_ep_mqtt) lv_obj_set_style_img_opa(led_ep_mqtt, mqttConnected ? LV_OPA_COVER : LV_OPA_50, 0);
 }
 
 // updateMSunPVUI retiré (Enphase V2)

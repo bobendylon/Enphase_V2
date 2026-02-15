@@ -60,11 +60,7 @@ bool screenFlipped = false;
 // Enphase V2 : forcé à 1 (écran unique Enphase)
 uint8_t activeScreenType = 1;
 
-// Verrouillage écran Enphase : MDP requis pour quitter le mode Enphase (web)
-bool screenLockEnabled = false;
-String screenLockPassword = "";
-static String unlockToken = "";
-static unsigned long unlockExpiry = 0;
+// Verrouillage MDP retiré (Enphase V2)
 
 // V14.0 - Format de date (0=complet, 1=abrégé+mois, 2=compact, 3=abrégé+date)
 int dateFormatIndex = 1;  // Par défaut: "Dim. 28 Déc. 2025"
@@ -214,8 +210,6 @@ void handleSaveScreenFlip();
 // V15.0 - Sélection écran MQTT / Enphase
 void handleScreensWeb();
 void handleSaveScreens();
-void handleUnlockScreen();
-void handleSaveScreenLock();
 void handleEnphaseMonitorHome();
 void handleExportEnphaseConfig();
 void handleEnphaseMonitorData();
@@ -605,8 +599,6 @@ void setup() {
   // V15.0 - Sélection écran (MQTT / Enphase)
   server.on("/screens", handleScreensWeb);
   server.on("/saveScreens", HTTP_POST, handleSaveScreens);
-  server.on("/unlockScreen", HTTP_POST, handleUnlockScreen);
-  server.on("/saveScreenLock", HTTP_POST, handleSaveScreenLock);
   // V14.0 - Format de date
   server.on("/saveDateFormat", HTTP_POST, handleSaveDateFormat);
   server.on("/saveBrightness", HTTP_POST, handleSaveBrightness);
@@ -1525,7 +1517,7 @@ void handleData() {
   json += "\"solarProdMain\":" + String(solarProdMain, 1) + ",";
   json += "\"solarProdCabane\":" + String(solarProdCabane, 1) + ",";
   json += "\"prod\":" + String(solarProd, 1) + ",";
-  json += "\"conso\":" + String(homeConso, 1) + ",";
+  json += "\"conso\":" + String(enphase_pact_grid, 1) + ",";  // ENEDIS (aligné LVGL)
   json += "\"homeConso\":" + String(homeConso, 1) + ",";
   json += "\"router\":" + String(routerPower, 1) + ",";
   json += "\"routerPower\":" + String(routerPower, 1) + ",";
@@ -1614,6 +1606,7 @@ void handleEnphaseMonitorData() {
   j += "\"date\":\"" + String(dateBuf) + "\",";
   j += "\"time\":\"" + String(timeBuf) + "\",";
   j += "\"wifi\":" + String(wifiConnected ? "true" : "false") + ",";
+  j += "\"mqtt_connected\":" + String(mqttConnected ? "true" : "false") + ",";
   j += "\"enphase_connected\":" + String(enphase_connected ? "true" : "false") + ",";
   j += "\"weather_city\":\"" + weather_city + "\",";
   j += "\"weather_temp\":" + String(weather_temp, 1) + ",";
@@ -1685,7 +1678,9 @@ body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-
   <span class='header-time' id='timeStr'>--:--:--</span>
   <div class='header-row'>
     <span id='icoWifi' class='ko' title='WiFi'>📶</span>
+    <span id='icoMqtt' class='ko' title='MQTT'>📡</span>
     <span id='icoEnphase' class='ko' title='Enphase'>⚡</span>
+    <a href='/mqtt'>Config MQTT</a>
     <a href='/enphase-reglages'>Réglages</a>
   </div>
 </div>
@@ -1726,6 +1721,7 @@ function upd(){
     document.getElementById('dateStr').textContent=d.date||'--';
     document.getElementById('timeStr').textContent=d.time||'--:--:--';
     document.getElementById('icoWifi').className=d.wifi?'ok':'ko';
+    var icoMqtt=document.getElementById('icoMqtt');if(icoMqtt)icoMqtt.className=(d.mqtt_connected?'ok':'ko');
     document.getElementById('icoEnphase').className=d.enphase_connected?'ok':'ko';
     document.getElementById('weatherCity').textContent=d.weather_city||'--';
     document.getElementById('weatherTemp').textContent=(d.weather_temp!=null?d.weather_temp.toFixed(0):'--')+'°C';
@@ -1734,7 +1730,7 @@ function upd(){
     fr.innerHTML='';
     if(d.forecast&&d.forecast.length){for(var i=0;i<d.forecast.length;i++){var x=d.forecast[i];var n=x.day_name||x.day;var div=document.createElement('div');div.className='forecast-day';div.innerHTML='<div class="d">'+n+'</div><div class="t">'+x.temp+'°</div>';fr.appendChild(div);}}
     document.getElementById('valProd').textContent=(d.pact_prod!=null?Math.round(d.pact_prod):0)+' W';
-    document.getElementById('valConso').textContent=(d.pact_conso!=null?Math.round(d.pact_conso):0)+' W';
+    document.getElementById('valConso').textContent=(d.pact_grid!=null?Math.round(d.pact_grid):0)+' W';
     document.getElementById('valPvMaison').textContent=(d.pact_prod!=null?Math.round(d.pact_prod):0)+' W';
     document.getElementById('valMaisonReseau').textContent=(d.pact_grid!=null?Math.round(d.pact_grid):0)+' W';
     document.getElementById('energyProd').textContent=(d.energy_produced!=null?d.energy_produced.toFixed(1):'0.0')+' kWh';
@@ -1793,11 +1789,12 @@ h1{color:#fbbf24;margin-bottom:8px;font-size:1.6em}
   html += "<div class='links'>";
   html += "<a href='/wifi?from=enphase'>📶 Réglages WiFi (scan, connexion, infos)</a>";
   html += "<a href='/enphase?from=enphase'>📡 Config Envoy (4 paramètres)</a>";
+  html += "<a href='/mqtt?from=enphase'>📡 Config MQTT (broker, publication HA)</a>";
   html += "<a href='/weather?from=enphase'>🌦️ Réglages Météo</a>";
-  html += "<a href='/info?from=enphase'>⚡ Réglages Tempo (activable)</a>";
+  html += "<a href='/info?from=enphase'>⚡ Réglages Tempo + Infos</a>";
   html += "</div>";
   html += "<div class='card-exp'><h2>💾 Export / Import paramètres</h2>";
-  html += "<p>Uniquement ce module : Config Envoy, verrouillage écran, météo.</p>";
+  html += "<p>Uniquement ce module : Config Envoy, météo.</p>";
   html += "<p><a href='/exportEnphase' class='btn-exp'>📤 Exporter la config</a></p>";
   html += "<p><span class='label'>Importer :</span></p>";
   html += "<input type='file' id='importEnphaseFile' accept='.json'>";
@@ -1822,26 +1819,7 @@ h1{color:#fbbf24;margin-bottom:8px;font-size:1.6em}
     r.readAsText(f.files[0]);
   }
   </script>)";
-  if (screenLockPassword.length() > 0) {
-    html += "<span class='compte-dev' onclick='showDevModal()' title='Accès accueil complet'>🔧 Compte DEV</span>";
-    html += "<div id='devModal' class='modal-overlay' onclick='if(event.target===this)closeDevModal()'>";
-    html += "<div class='modal-box' onclick='event.stopPropagation()'><h3>🔓 Accès accueil</h3>";
-    html += "<p style='color:#9ca3af;font-size:0.85em;margin-bottom:12px'>Mot de passe requis.</p>";
-    html += "<form method='POST' action='/unlockScreen' id='devUnlockForm'>";
-    html += "<input type='hidden' name='next' value='/'>";
-    html += "<input type='password' name='pwd' id='devPwd' placeholder='Mot de passe' autocomplete='off' required>";
-    html += "<div><button type='submit'>Valider</button><button type='button' onclick='closeDevModal()'>Annuler</button></div>";
-    html += "</form>";
-    if (server.hasArg("err") && server.arg("err") == "1") html += "<p class='err' style='margin-top:8px'>Mot de passe incorrect.</p>";
-    html += "</div></div>";
-    html += R"(<script>
-    function showDevModal(){ document.getElementById('devModal').classList.add('show'); document.getElementById('devPwd').value=''; document.getElementById('devPwd').focus(); }
-    function closeDevModal(){ document.getElementById('devModal').classList.remove('show'); }
-    if(document.location.search.indexOf('err=1')!==-1) setTimeout(showDevModal,50);
-    </script>)";
-  } else {
-    html += "<a href='/' class='compte-dev' title='Accès accueil complet'>🔧 Compte DEV</a>";
-  }
+  html += "<a href='/' class='compte-dev' title='Accueil complet'>🔧 Accueil complet</a>";
   html += "</body></html>";
   server.send(200, "text/html", html);
 }
@@ -1910,15 +1888,16 @@ void handleInfoWeb() {
   html += "<h1>ℹ️ Informations Système</h1>";
   
   html += "<div class='card'><h2>📶 WiFi</h2>";
-  html += "<p><span class='label'>État:</span> <span class='value' style='color:#22c55e'>" + String(wifiConnected?"Connecté":"Déconnecté") + "</span></p>";
-  html += "<p><span class='label'>SSID:</span> <span class='value'>" + String(WIFI_SSID) + "</span></p>";
+  html += "<p><span class='label'>État:</span> <span class='value' style='color:" + String(wifiConnected ? "#22c55e" : "#ef4444") + "'>" + String(wifiConnected ? "Connecté" : "Déconnecté") + "</span></p>";
+  html += "<p><span class='label'>SSID:</span> <span class='value'>" + (config_wifi_ssid.length() ? config_wifi_ssid : String(WiFi.SSID())) + "</span></p>";
   html += "<p><span class='label'>IP:</span> <span class='value'>" + ipAddress + "</span></p>";
-  html += "<p><span class='label'>Signal:</span> <span class='value'>" + String(rssi) + " dBm</span></p></div>";
+  html += "<p><span class='label'>Signal:</span> <span class='value'>" + String(rssi) + " dBm</span></p>";
+  html += String("<p style='margin-top:10px'><a href='/wifi") + (server.hasArg("from") && server.arg("from") == "enphase" ? "?from=enphase" : "") + "' class='btn' style='display:inline-block;text-decoration:none;cursor:pointer;border:none'>⚙️ Configurer WiFi</a></p></div>";
   
   html += "<div class='card'><h2>📡 MQTT</h2>";
-  html += "<p><span class='label'>État:</span> <span class='value' style='color:#22c55e'>" + String(mqttConnected?"Connecté":"Déconnecté") + "</span></p>";
-  html += "<p><span class='label'>Broker:</span> <span class='value'>" + String(MQTT_SERVER) + ":" + String(MQTT_PORT) + "</span></p>";
-  html += "<p><span class='label'>Buffer:</span> <span class='value'>2048 bytes (Zigbee2MQTT)</span></p></div>";
+  html += "<p><span class='label'>État:</span> <span class='value' style='color:" + String(mqttConnected ? "#22c55e" : "#ef4444") + "'>" + String(mqttConnected ? "Connecté" : "Déconnecté") + "</span></p>";
+  html += "<p><span class='label'>Broker:</span> <span class='value'>" + (config_mqtt_ip.length() ? config_mqtt_ip + ":" + String(config_mqtt_port) : "--") + "</span></p>";
+  html += "<p style='margin-top:10px'><a href='/mqtt' class='btn' style='display:inline-block;text-decoration:none;cursor:pointer;border:none'>⚙️ Configurer MQTT</a></p></div>";
   
   // M'SunPV retiré (Enphase V2)
   
@@ -1973,20 +1952,7 @@ void handleInfoWeb() {
   html += "<p><span class='label'>Rotation:</span> <span class='value' style='color:" + String(screenFlipped ? "#22c55e" : "#9ca3af") + "'>" + String(screenFlipped ? "180° (Retourné)" : "0° (Normal)") + "</span></p>";
   html += "<p style='margin-top:15px'><button onclick='toggleScreenFlip()' class='btn' style='display:inline-block;cursor:pointer;border:none;background:" + String(screenFlipped ? "#ef4444" : "#22c55e") + "'>" + String(screenFlipped ? "↩️ Remettre Normal" : "🔄 Retourner 180°") + "</button></p>";
   html += "<p style='color:#6b7280;margin-top:10px;font-size:0.9em'>L'écran sera retourné immédiatement après sauvegarde</p>";
-  // Verrouillage Enphase : MDP requis pour quitter le mode Enphase
-  html += "<h3 style='margin-top:20px;margin-bottom:10px;color:#d1d5db;font-size:1em'>🔒 Verrouillage Enphase</h3>";
-  html += "<p style='color:#9ca3af;font-size:0.9em;margin-bottom:10px'>Quand l'écran est sur Enphase, exiger un mot de passe pour changer d'écran (web et écran LVGL).</p>";
-  html += "<form method='POST' action='/saveScreenLock' style='margin-top:12px' id='formScreenLock' onsubmit='return validateScreenLockPwd()'>";
-  html += "<label style='display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer'>";
-  html += "<input type='checkbox' name='lock_enabled' value='1'" + String(screenLockEnabled ? " checked" : "") + ">";
-  html += "<span>Activer le verrouillage (mot de passe requis pour quitter le mode Enphase)</span></label>";
-  html += "<p><span class='label'>Mot de passe pour déverrouiller:</span></p>";
-  html += "<input type='password' name='pwd' id='screenLockPwd' placeholder='Mot de passe (vide = ne pas changer)' style='width:100%;max-width:280px;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #4b5563;background:#1f2937;color:#fff'>";
-  html += "<p><span class='label'>Confirmer le mot de passe:</span></p>";
-  html += "<input type='password' name='pwd2' id='screenLockPwd2' placeholder='Confirmer le mot de passe' style='width:100%;max-width:280px;padding:10px;margin:8px 0;border-radius:8px;border:1px solid #4b5563;background:#1f2937;color:#fff'>";
-  if (server.hasArg("err") && server.arg("err") == "lock_mismatch") html += "<p style='color:#ef4444;font-size:0.9em;margin-top:4px'>Les deux mots de passe ne correspondent pas.</p>";
-  html += "<p style='margin-top:12px'><button type='submit' class='btn' style='display:inline-block;cursor:pointer;border:none;background:#f59e0b;color:#0c0a09'>Enregistrer</button></p>";
-  html += "</form></div>";
+  html += "</div>";
   
   // Luminosité écran (jour / nuit, 0–255)
   html += "<div class='card'><h2>💡 Luminosité écran</h2>";
@@ -2028,13 +1994,6 @@ void handleInfoWeb() {
   html += "<p style='margin-top:15px'><button onclick='restartDevice()' class='btn' style='display:inline-block;cursor:pointer;border:none;background:#ef4444;color:white'>🔴 Redémarrer</button></p></div>";
   
   html += R"(<script>
-function validateScreenLockPwd() {
-  var p1 = document.getElementById('screenLockPwd').value;
-  var p2 = document.getElementById('screenLockPwd2').value;
-  if (p1 !== p2) { alert('Les deux mots de passe ne correspondent pas.'); return false; }
-  if (p1.length > 0 && p2.length === 0) { alert('Veuillez confirmer le mot de passe.'); return false; }
-  return true;
-}
 function importConfig() {
   var f = document.getElementById('importFile');
   var st = document.getElementById('importStatus');
@@ -2230,8 +2189,6 @@ void handleExportConfig() {
   doc[PREF_ENPHASE_SERIAL] = config_enphase_serial;
   doc[PREF_SCREEN_FLIPPED] = screenFlipped;
   doc[PREF_ACTIVE_SCREEN] = activeScreenType;
-  doc[PREF_SCREEN_LOCK_ENABLED] = screenLockEnabled;
-  doc[PREF_SCREEN_LOCK_PWD] = screenLockPassword;
   doc[PREF_DATE_FORMAT] = dateFormatIndex;
   doc[PREF_BRIGHTNESS_DAY] = (int)brightnessDay;
   doc[PREF_BRIGHTNESS_NIGHT] = (int)brightnessNight;
@@ -2251,8 +2208,6 @@ void handleExportEnphaseConfig() {
   doc[PREF_ENPHASE_USER] = config_enphase_user;
   doc[PREF_ENPHASE_PWD] = config_enphase_pwd;
   doc[PREF_ENPHASE_SERIAL] = config_enphase_serial;
-  doc[PREF_SCREEN_LOCK_ENABLED] = screenLockEnabled;
-  doc[PREF_SCREEN_LOCK_PWD] = screenLockPassword;
   doc[PREF_WEATHER_API] = weather_getApiKey();
   doc[PREF_WEATHER_CITY] = weather_getCity();
   String out;
@@ -2291,12 +2246,6 @@ void handleImportConfig() {
       else if (v.is<long>()) { uint8_t n = (uint8_t)v.as<long>(); if (n <= 2) preferences.putUChar(k, n); }
     } else if (strcmp(k, PREF_SCREEN_FLIPPED) == 0) {
       if (v.is<bool>()) preferences.putBool(k, v.as<bool>());
-    } else if (strcmp(k, PREF_SCREEN_LOCK_ENABLED) == 0) {
-      if (v.is<bool>()) preferences.putBool(k, v.as<bool>());
-      else if (v.is<int>() || v.is<long>()) preferences.putBool(k, (v.as<long>() != 0));
-    } else if (strcmp(k, PREF_SCREEN_LOCK_PWD) == 0) {
-      if (v.is<const char*>()) preferences.putString(k, v.as<const char*>());
-      else if (v.is<String>()) preferences.putString(k, v.as<String>());
     } else if (strcmp(k, PREF_BRIGHTNESS_DAY) == 0 || strcmp(k, PREF_BRIGHTNESS_NIGHT) == 0) {
       if (v.is<int>()) { int n = v.as<int>(); if (n >= 0 && n <= 255) preferences.putUChar(k, (uint8_t)n); }
       else if (v.is<long>()) { long n = v.as<long>(); if (n >= 0 && n <= 255) preferences.putUChar(k, (uint8_t)n); }
@@ -2347,30 +2296,11 @@ void handleSaveScreenFlip() {
 }
 
 // V15.0 - Page sélection écran (MQTT / Enphase)
-// Retourne true si le client est déverrouillé (cookie valide)
-static bool isUnlockCookieValid() {
-  if (unlockToken.length() == 0 || millis() >= unlockExpiry) return false;
-  String cookie;
-  if (server.hasHeader("Cookie")) cookie = server.header("Cookie");
-  else if (server.hasHeader("cookie")) cookie = server.header("cookie");
-  else return false;
-  int i = cookie.indexOf("unlock_token=");
-  if (i < 0) return false;
-  i += 13;
-  int j = cookie.indexOf(";", i);
-  String token = (j > i) ? cookie.substring(i, j) : cookie.substring(i);
-  token.trim();
-  return (token == unlockToken);
-}
-
 void handleScreensWeb() {
   if (wifiAPMode) {
     handleWiFiSetupPage();
     return;
   }
-  // Verrouillé = mode Enphase + verrouillage activé + MDP défini
-  bool locked = (activeScreenType == 1 && screenLockEnabled && screenLockPassword.length() > 0);
-  bool unlocked = isUnlockCookieValid();
 
   String html = R"(<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><link rel='icon' type='image/svg+xml' href='/favicon.ico'><title>Écran - MSunPV</title><style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -2386,30 +2316,10 @@ void handleScreensWeb() {
     .card .icon{font-size:2.5em;margin-bottom:12px}
     .card .title{font-size:1.15em;font-weight:600;color:#fff;margin-bottom:6px}
     .card .desc{font-size:0.85em;color:#9ca3af;line-height:1.4}
-    .unlock-box{background:rgba(41,37,36,0.95);border:2px solid rgba(251,191,36,0.4);border-radius:16px;padding:28px;max-width:400px;margin-top:20px}
-    .unlock-box input[type=password]{width:100%;padding:12px;margin:12px 0;border-radius:8px;border:1px solid #4b5563;background:#1f2937;color:#fff;font-size:1em}
-    .unlock-box button{background:#f59e0b;color:#0c0a09;border:none;padding:12px 24px;border-radius:8px;font-weight:600;cursor:pointer}
-    .unlock-box button:hover{background:#fbbf24}
-    .unlock-err{color:#ef4444;font-size:0.9em;margin-top:8px}
     @media(max-width:480px){.grid{grid-template-columns:1fr}}
   </style></head><body>)";
   html += "<a href='/info' class='back'>&larr; Retour</a>";
-
-  if (locked && !unlocked) {
-    // Afficher formulaire de déverrouillage
-    html += "<h1>🔒 Écran verrouillé</h1>";
-    html += "<p class='sub'>L'écran est en mode Enphase et verrouillé. Entrez le mot de passe pour changer d'écran.</p>";
-    html += "<div class='unlock-box'>";
-    html += "<form method='POST' action='/unlockScreen'>";
-    html += "<label for='pwd'>Mot de passe</label><br>";
-    html += "<input type='password' id='pwd' name='pwd' placeholder='Mot de passe' required autofocus>";
-    html += "<button type='submit'>Déverrouiller</button>";
-    html += "</form>";
-    if (server.hasArg("err")) html += "<p class='unlock-err'>Mot de passe incorrect.</p>";
-    html += "</div>";
-  } else {
-    // Afficher sélection d'écran
-    html += "<h1>🖥️ Sélection de l'écran</h1>";
+  html += "<h1>🖥️ Sélection de l'écran</h1>";
     html += "<p class='sub'>Choisissez l'écran principal. Enphase V2 : écran Enphase uniquement.</p>";
     html += "<div class='grid'>";
 
@@ -2430,38 +2340,12 @@ void handleScreensWeb() {
         .then(d => {
           if (d.success) {
             for (var i=0;i<=2;i++) { var c=document.getElementById('card'+i); if(c){ c.style.borderColor=(i==n)?'#f59e0b':''; c.style.background=(i==n)?'rgba(245,158,11,0.1)':''; } }
-          } else if (d.locked) {
-            window.location.href = '/screens?err=1';
           }
         });
     }
   </script>)";
-  }
   html += "</body></html>";
   server.send(200, "text/html", html);
-}
-
-void handleUnlockScreen() {
-  if (!server.hasArg("pwd")) {
-    String redir = server.hasArg("next") ? server.arg("next") : "/screens";
-    if (redir != "/" && redir != "/info") redir = "/screens";
-    server.sendHeader("Location", redir + "?err=1");
-    server.send(302, "text/plain", "");
-    return;
-  }
-  if (server.arg("pwd") != screenLockPassword) {
-    server.sendHeader("Location", (server.hasArg("next") && server.arg("next") == "/") ? "/enphase-reglages?err=1" : "/screens?err=1");
-    server.send(302, "text/plain", "");
-    return;
-  }
-  unlockToken = String((unsigned long)esp_random(), HEX);
-  unlockExpiry = millis() + 300000;  // 5 min
-  server.sendHeader("Set-Cookie", "unlock_token=" + unlockToken + "; Path=/; Max-Age=300");
-  String redir = server.hasArg("next") ? server.arg("next") : "/screens";
-  if (redir != "/" && redir != "/info") redir = "/screens";
-  server.sendHeader("Location", redir);
-  server.send(302, "text/plain", "");
-  Serial.println("[Screen] Déverrouillage OK");
 }
 
 void handleSaveScreens() {
@@ -2485,26 +2369,6 @@ void handleSaveScreens() {
   lv_refr_now(disp);
   server.send(200, "application/json", "{\"success\":true,\"screen\":" + String(n) + "}");
   Serial.println("[V15.0] Écran: " + String(n == 0 ? "MQTT" : (n == 1 ? "Enphase" : "M'SunPV")));
-}
-
-void handleSaveScreenLock() {
-  screenLockEnabled = (server.hasArg("lock_enabled") && server.arg("lock_enabled") == "1");
-  if (server.hasArg("pwd")) {
-    String p = server.arg("pwd");
-    String p2 = server.hasArg("pwd2") ? server.arg("pwd2") : "";
-    if (p.length() > 0) {
-      if (p != p2) {
-        server.sendHeader("Location", "/info?err=lock_mismatch");
-        server.send(302, "text/plain", "");
-        return;
-      }
-      screenLockPassword = p;
-    }
-  }
-  savePreferences();
-  server.sendHeader("Location", "/info");
-  server.send(302, "text/plain", "");
-  Serial.println("[Screen] Verrouillage Enphase: " + String(screenLockEnabled ? "activé" : "désactivé"));
 }
 
 // Page Réglages (écran LVGL, roue dentée) - Enphase V2 : toujours écran Enphase
@@ -2538,11 +2402,23 @@ void settings_do_factory_reset(void) {
 void settings_get_log_text(char* buf, int maxLen) {
   buf[0] = '\0';
   int len = 0;
+  // Ligne MQTT : état de connexion
+  extern bool mqttConnected;
+  extern String config_mqtt_ip;
+  extern int config_mqtt_port;
+  const char* mqttLine = mqttConnected
+    ? "[MQTT] Connecte\n"
+    : "[MQTT] Deconnecte\n";
+  int mL = (int)strlen(mqttLine);
+  if (mL < maxLen - 1) {
+    memcpy(buf, mqttLine, (size_t)(mL + 1));
+    len = mL;
+  }
   const int maxLines = 10;
   for (int i = 0; i < maxLines && len < maxLen - 1; i++) {
     int idx = (logIndex + MAX_LOGS - 1 - i + MAX_LOGS) % MAX_LOGS;
     if (systemLogs[idx].length() == 0) continue;
-    int n = systemLogs[idx].length();
+    int n = (int)systemLogs[idx].length();
     if (len + n + 2 > maxLen - 1) n = maxLen - 1 - len - 2;
     if (n > 0) {
       memcpy(buf + len, systemLogs[idx].c_str(), (size_t)n);
@@ -2797,9 +2673,6 @@ void loadPreferences() {
   // V15.0 - Écran actif (MQTT vs Enphase) - Enphase V2 : défaut 1 (écran unique)
   activeScreenType = preferences.getUChar(PREF_ACTIVE_SCREEN, 1);
   
-  // Verrouillage écran Enphase (MDP pour quitter le mode Enphase)
-  screenLockEnabled = preferences.getBool(PREF_SCREEN_LOCK_ENABLED, false);
-  screenLockPassword = preferences.getString(PREF_SCREEN_LOCK_PWD, "");
   
   // V14.0 - Format de date
   dateFormatIndex = preferences.getInt(PREF_DATE_FORMAT, 1);  // Défaut: format abrégé
@@ -2842,9 +2715,6 @@ void savePreferences() {
   // V15.0 - Écran actif
   preferences.putUChar(PREF_ACTIVE_SCREEN, activeScreenType);
   
-  // Verrouillage écran Enphase
-  preferences.putBool(PREF_SCREEN_LOCK_ENABLED, screenLockEnabled);
-  preferences.putString(PREF_SCREEN_LOCK_PWD, screenLockPassword);
   
   // V14.0 - Format de date
   preferences.putInt(PREF_DATE_FORMAT, dateFormatIndex);
@@ -2865,7 +2735,7 @@ void savePreferences() {
 
 // Page configuration WiFi
 void handleWifiConfig() {
-  String html = R"(
+  String html = R"WIFIHTML(
 <!DOCTYPE html>
 <html>
 <head>
@@ -2961,7 +2831,28 @@ void handleWifiConfig() {
       input { padding: 12px; font-size: 16px; }
       .btn { font-size: 1em; }
     }
+    .wifi-item { padding:10px; border-radius:6px; cursor:pointer; margin-bottom:4px; background:#1c1917 }
+    .wifi-item:hover { background:#374151 }
   </style>
+  <script>
+    function wifiScan() {
+      var btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Scan...';
+      fetch('/scan').then(r=>r.json()).then(function(nets){
+        var el = document.getElementById('wifiScanList');
+        el.style.display = 'block';
+        var h = '';
+        nets.forEach(function(n){
+          var s = (n.ssid||'').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+          h += '<div class="wifi-item" data-ssid="' + s + '" onclick="document.getElementById(\'wifi_ssid\').value=this.getAttribute(\'data-ssid\')">' + (n.ssid||'') + ' (' + (n.rssi||0) + ' dBm)</div>';
+        });
+        el.innerHTML = h || '(Aucun réseau)';
+        btn.disabled = false;
+        btn.textContent = '📡 Scanner';
+      }).catch(function(){ btn.disabled = false; btn.textContent = '📡 Scanner'; });
+    }
+  </script>
 </head>
 <body>
   <div class="container">
@@ -2971,10 +2862,16 @@ void handleWifiConfig() {
       ⚠️ <strong>Attention :</strong> Après enregistrement, l'ESP32 va redémarrer et se connecter au nouveau réseau. Assurez-vous que les identifiants sont corrects !
     </div>
     
+    <div class="form-group">
+      <label>Scanner les réseaux</label>
+      <button type="button" class="btn" onclick="wifiScan()" style="margin-bottom:10px">📡 Scanner</button>
+      <div id="wifiScanList" style="max-height:180px;overflow-y:auto;border:1px solid #374151;border-radius:8px;padding:8px;display:none"></div>
+    </div>
+    
     <form method="POST" action="/saveWifi">
       <div class="form-group">
         <label>SSID WiFi</label>
-        <input type="text" name="wifi_ssid" value=")";
+        <input type="text" name="wifi_ssid" id="wifi_ssid" value=")WIFIHTML";
   html += config_wifi_ssid;
   html += R"(" required>
         <div class="current-value">Actuellement connecté à : )";

@@ -139,6 +139,7 @@ void mqtt_reconnect() {
   }
   
   if (!mqttClient->connected()) {
+    mqttClient->setServer(config_mqtt_ip.c_str(), config_mqtt_port);
     addLogf("Connexion MQTT... (Broker: %s:%d)", config_mqtt_ip.c_str(), config_mqtt_port);
     
     String clientId = "MSunPV-" + String(random(0xffff), HEX);

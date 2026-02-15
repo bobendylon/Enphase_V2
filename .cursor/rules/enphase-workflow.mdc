@@ -1,0 +1,12 @@
+---
+description: Workflow du projet Enphase V2 — l'assistant ne compile pas
+alwaysApply: true
+---
+
+# Enphase V2 – Workflow
+
+## Compilation
+
+L'assistant **ne lance pas la compilation** (`pio run`, `pio run -t upload`, etc.).
+
+L'utilisateur compile et uploade lui-même avec VS Code / PlatformIO.

@@ -593,7 +593,7 @@ void enphase_init(WiFiClientSecure* client) {
 void enphase_handleWeb(WebServer* server) {
   bool fromEnphase = (server->hasArg("from") && server->arg("from") == "enphase");
   String backUrl = fromEnphase ? "/enphase-monitor" : "/";
-  String configUrl = fromEnphase ? "/enphase-reglages" : "/info";
+  String configUrl = String("/info") + (fromEnphase ? "?from=enphase" : "");
   bool hasEnphase = (config_enphase_ip.length() > 0);
 
   if (!hasEnphase) {

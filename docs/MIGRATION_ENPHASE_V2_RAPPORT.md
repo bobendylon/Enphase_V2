@@ -2,7 +2,11 @@
 
 **Projet :** Enphase_V2  
 **Source :** MSunPV_Monitor_V11_multi  
-**Dernière mise à jour :** 15 février 2025 (session correction MQTT, CONSO, écoute)
+**Dernière mise à jour :** 16 février 2025 (publication MQTT Enphase, tableau config, unités)
+
+![Vue d’ensemble Enphase Monitor](schema_enphase_monitor.png)
+
+*Schéma type de l’interface Enphase Monitor (web).*
 
 ---
 
@@ -55,17 +59,22 @@ Transformer le moniteur MSunPV multi-écrans en un affichage unique Enphase :
 | Route et handler | `main.cpp` | Suppression `/alarm/set` |
 | Module MQTT | `module_mqtt.cpp` | Suppression topics alarme, subscribe, parse |
 
-### 2.6 Module MQTT – entrées retirées, broker simplifié
+### 2.6 Module MQTT – entrées retirées, broker simplifié, publication Enphase
 
 | Modification | Fichiers | Détail |
 |--------------|----------|--------|
 | Présences (Ben, Francine, Victor) | `module_mqtt.cpp/h`, `main.cpp` | Variables, parse, subscribe, formulaire retirés |
-| Souscriptions MQTT | `module_mqtt.cpp` | Toutes les `subscribe()` supprimées |
+| Souscriptions MQTT | `module_mqtt.cpp` | Toutes les `subscribe()` supprimées (hors outil écoute test) |
 | Parsing entrant | `module_mqtt.cpp` | `parseMqttMessage()` vidé |
-| Page Config MQTT | `module_mqtt.cpp` | Simplifiée : broker uniquement (IP, port, user, pass) — route `/mqtt` |
+| Page Config MQTT | `module_mqtt.cpp` | Broker (IP, port, user, pass) + **Publication Enphase** (préfixe, intervalle) — route `/mqtt` |
 | User/Pass en NVS | `module_mqtt.cpp`, `config.h` | `config_mqtt_user`, `config_mqtt_pass` configurables depuis le web |
 | Connexion optionnelle | `module_mqtt.cpp` | Si IP vide → pas de tentative de connexion |
-| Config MQTT accessible | `main.cpp` | Lien Réglages et Enphase Monitor → `/mqtt`. **Résolu fév. 2025** : mqtt_loop() toujours actif, diagnostic et outil écoute ajoutés l’utilisateur ne trouve plus où saisir les paramètres MQTT, et la connexion ne fonctionne pas avec les valeurs enregistrées** |
+| Config MQTT accessible | `main.cpp` | Lien Réglages et Enphase Monitor → `/mqtt`. mqtt_loop() toujours actif, outil écoute et diagnostic. |
+| **Publication Enphase** (fév. 2025) | `module_mqtt.cpp` | Publication périodique des valeurs Enphase (puissances W, énergies Wh, status) sur topics `<prefixe>/*` ; préfixe et intervalle (5–300 s) configurables ; LWT sur `<prefixe>/status` ; tableau de contrôle sur la page MQTT (topic, valeur Enphase, unité). Endpoint `/mqttPublishData` pour le tableau. |
+
+Exemple de vue des topics dans **MQTT Explorer** (préfixe `enphase_monitor`) :
+
+![Topics MQTT Enphase dans MQTT Explorer](mqtt_explorer_enphase_monitor.png)
 
 ### 2.7 Page d’accueil et données
 

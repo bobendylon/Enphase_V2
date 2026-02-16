@@ -340,7 +340,7 @@ void mqtt_saveConfig(Preferences* prefs) {
 
 // GET /mqttPublishData - Valeurs Enphase actuelles (pour tableau de contrôle)
 void mqtt_handlePublishData(WebServer* server) {
-  char buf[128];
+  char buf[320];
   snprintf(buf, sizeof(buf),
     "{\"power_production\":%.0f,\"power_consumption\":%.0f,\"power_grid\":%.0f,"
     "\"energy_produced_today\":%.0f,\"energy_consumed_today\":%.0f,\"energy_imported_today\":%.0f,\"energy_injected_today\":%.0f,"
@@ -379,17 +379,23 @@ void mqtt_handleConfig(WebServer* server) {
     .status{background:#1c1917;padding:14px;border-radius:8px;margin-bottom:20px;border:1px solid #44403c;}
     .status.connected{border-left:4px solid #22c55e;}
     .status.disconnected{border-left:4px solid #ef4444;}
-    .publish-card{background:#292524;border-radius:10px;border:1px solid #44403c;overflow:hidden;margin-top:20px;}
+    .publish-card{background:#292524;border-radius:10px;border:1px solid #44403c;margin-top:20px;}
     .publish-card h2{margin:0;padding:16px;background:rgba(251,191,36,0.08);border-bottom:1px solid #44403c;}
-    .publish-table{width:100%;border-collapse:collapse;}
-    .publish-table th{text-align:left;padding:12px 16px;background:#1c1917;color:#a8a29e;font-size:0.8em;text-transform:uppercase;}
-    .publish-table td{padding:12px 16px;border-bottom:1px solid #3f3f3f;}
+    .publish-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -1px;}
+    .publish-table{width:100%;min-width:380px;border-collapse:collapse;}
+    .publish-table th{text-align:left;padding:10px 12px;background:#1c1917;color:#a8a29e;font-size:0.8em;text-transform:uppercase;}
+    .publish-table td{padding:10px 12px;border-bottom:1px solid #3f3f3f;}
     .publish-table tr:last-child td{border-bottom:none;}
-    .publish-table .topic{font-family:monospace;font-size:0.9em;color:#d6d3d1;}
-    .publish-table .value{text-align:right;color:#fbbf24;font-weight:600;}
+    .publish-table .topic{font-family:monospace;font-size:0.85em;color:#d6d3d1;word-break:break-all;max-width:220px;}
+    .publish-table .value{text-align:right;color:#fbbf24;font-weight:600;white-space:nowrap;min-width:5.5em;}
     .publish-table .value.status-online{color:#22c55e;}
     .publish-table .value.status-offline{color:#ef4444;}
+    .publish-table .unit{text-align:center;color:#78716c;font-size:0.9em;white-space:nowrap;min-width:2.5em;}
     .publish-badge{display:inline-block;font-size:0.75em;background:rgba(251,191,36,0.2);color:#fbbf24;padding:2px 8px;border-radius:4px;margin-left:8px;}
+    @media (max-width:480px){
+      .container{padding:0 8px;max-width:100%;}
+      body{padding:12px 0;}
+    }
   </style>
   <script>
     var publishPrefix = ')";
@@ -413,6 +419,7 @@ void mqtt_handleConfig(WebServer* server) {
     }
     function updatePublishTable(data) {
       var ids = ['power_production','power_consumption','power_grid','energy_produced_today','energy_consumed_today','energy_imported_today','energy_injected_today','status'];
+      var units = [' W',' W',' W',' Wh',' Wh',' Wh',' Wh',''];
       for (var i = 0; i < ids.length; i++) {
         var el = document.getElementById('val_' + ids[i]);
         if (!el) continue;
@@ -422,7 +429,7 @@ void mqtt_handleConfig(WebServer* server) {
           el.textContent = v;
           el.className = 'value status-' + v;
         } else {
-          el.textContent = v;
+          el.textContent = (typeof v === 'number' ? (ids[i].indexOf('energy') >= 0 ? Number(v).toFixed(1) : Math.round(v)) : v) + units[i];
           el.className = 'value';
         }
       }
@@ -448,10 +455,15 @@ void mqtt_handleConfig(WebServer* server) {
         }
       });
     }
+    function fetchPublishData() {
+      fetch('/mqttPublishData').then(function(r) { return r.text(); }).then(function(t) {
+        try { var d = JSON.parse(t); updatePublishTable(d); } catch(e) { updatePublishTable({}); }
+      }).catch(function() { updatePublishTable({}); });
+    }
     setInterval(updateStatus, 3000);
     setInterval(updateListenData, 2000);
-    setInterval(function() { fetch('/mqttPublishData').then(r => r.json()).then(updatePublishTable).catch(function(){}); }, 2000);
-    window.onload = function() { updateStatus(); updateListenData(); refreshPublishPrefix(); fetch('/mqttPublishData').then(r => r.json()).then(updatePublishTable); };
+    setInterval(fetchPublishData, 2000);
+    window.onload = function() { updateStatus(); updateListenData(); refreshPublishPrefix(); fetchPublishData(); };
   </script>
 </head>
 <body>
@@ -501,11 +513,13 @@ void mqtt_handleConfig(WebServer* server) {
     </form>
     <div class="publish-card">
       <h2>Valeurs publiees MQTT <span class="publish-badge">Valeur Enphase (contrôle)</span></h2>
+      <div class="publish-table-wrap">
       <table class="publish-table">
-        <thead><tr><th>Topic publie</th><th>Valeur Enphase</th></tr></thead>
+        <thead><tr><th>Topic publie</th><th>Valeur Enphase</th><th>Unite</th></tr></thead>
         <tbody>)";
   {
     static const char* suf[] = {"power_production","power_consumption","power_grid","energy_produced_today","energy_consumed_today","energy_imported_today","energy_injected_today","status"};
+    static const char* unt[] = {"W","W","W","Wh","Wh","Wh","Wh","—"};
     String p = config_mqtt_topic_prefix.length() ? config_mqtt_topic_prefix : String(DEFAULT_MQTT_TOPIC_PREFIX);
     for (int i = 0; i < 8; i++) {
       html += "<tr><td class=\"topic\">";
@@ -514,12 +528,15 @@ void mqtt_handleConfig(WebServer* server) {
       html += suf[i];
       html += "</td><td class=\"value\" id=\"val_";
       html += suf[i];
-      html += "\">-</td></tr>";
+      html += "\">-</td><td class=\"unit\">";
+      html += unt[i];
+      html += "</td></tr>";
     }
   }
   html += R"(
         </tbody>
       </table>
+      </div>
     </div>
     <h2>Test ecoute MQTT</h2>
     <p class="hint">Connecte au broker uniquement. Saisissez un topic pour ecouter les messages (ex: shellies/+/emeter/0/power).</p>

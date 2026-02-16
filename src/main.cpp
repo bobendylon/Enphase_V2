@@ -1661,9 +1661,9 @@ body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-
 .meteo-gauche .ico{font-size:2.2em;line-height:1}
 .meteo-droite{display:flex;gap:10px;flex:1;justify-content:flex-end;flex-wrap:wrap}
 .meteo-droite .forecast-day{text-align:center;min-width:52px}
-.meteo-droite .forecast-day .d{font-size:0.75em;color:#9ca3af;margin-bottom:2px}
-.meteo-droite .forecast-day .ico{font-size:1.1em;line-height:1;margin:2px 0}
-.meteo-droite .forecast-day .t{font-size:0.95em;font-weight:600;color:#fff}
+    .meteo-droite .forecast-day .d{font-size:0.75em;color:#9ca3af;margin-bottom:2px}
+    .meteo-droite .forecast-day .ico{font-size:2.2em;line-height:1;margin:2px 0}
+    .meteo-droite .forecast-day .t{font-size:0.95em;font-weight:600;color:#fff;margin-top:6px}
 .cartes-deux{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
 .cartes-deux .carte{flex:1;min-width:140px;padding:14px;border-radius:12px;border:1px solid rgba(251,191,36,0.25);background:rgba(41,37,36,0.9)}
 .cartes-deux .carte .ligne{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
@@ -1673,11 +1673,15 @@ body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-
 .cartes-deux .carte .val.prod{color:#fbbf24}
 .cartes-deux .carte .val.conso{color:#3b82f6}
 .flux{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 12px;padding:16px;background:rgba(41,37,36,0.9);border-radius:12px;border:1px solid rgba(251,191,36,0.25)}
-.flux-item{display:flex;flex-direction:column;align-items:center;gap:4px}
-.flux-item .ico{font-size:1.6em}
-.flux-item .val{font-size:0.9em;color:#9ca3af;font-weight:600}
-.flux-chevron{display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.flux-chevron svg{width:18px;height:18px;transition:fill .3s}
+    .flux-item{display:flex;flex-direction:column;align-items:center;gap:4px}
+    .flux-item .ico{font-size:1.6em}
+    .flux-item .val{font-size:0.9em;color:#9ca3af;font-weight:600}
+    .flux-chevron{display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .flux-chevron svg{width:18px;height:18px;transition:fill .3s}
+    @media(max-width:480px){
+      .flux{gap:4px 4px;padding:12px 10px}
+      .flux-chevron svg{width:14px;height:14px}
+    }
 @media(max-width:400px){.meteo-droite{justify-content:flex-start}.cartes-deux .carte{min-width:100%}}
 </style></head><body>
 <div class='container'>

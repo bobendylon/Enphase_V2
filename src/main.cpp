@@ -610,6 +610,7 @@ void setup() {
   // V11.0 - MQTT (Module)
   server.on("/mqtt", []() { mqtt_handleConfig(&server); });
   server.on("/saveMqtt", HTTP_POST, []() { mqtt_handleSaveConfig(&server); });
+  server.on("/mqttPublishData", []() { mqtt_handlePublishData(&server); });
   server.on("/mqttListenSet", HTTP_POST, []() { mqtt_handleListenSet(&server); });
   server.on("/mqttListenData", []() { mqtt_handleListenData(&server); });
   server.on("/wifi", handleWifiConfig);

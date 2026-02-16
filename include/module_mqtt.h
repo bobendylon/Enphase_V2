@@ -35,6 +35,8 @@ extern String config_mqtt_ip;
 extern int config_mqtt_port;
 extern String config_mqtt_user;
 extern String config_mqtt_pass;
+extern String config_mqtt_topic_prefix;
+extern int config_mqtt_publish_interval;
 extern String config_topic_prod;
 extern String config_topic_cabane;
 extern String config_topic_conso;
@@ -61,6 +63,7 @@ void mqtt_handleListenSet(WebServer* server);   // POST /mqttListenSet
 void mqtt_handleListenData(WebServer* server);  // GET /mqttListenData
 void mqtt_handleConfig(WebServer* server);           // GET /mqtt
 void mqtt_handleSaveConfig(WebServer* server);       // POST /saveMqtt
+void mqtt_handlePublishData(WebServer* server);      // GET /mqttPublishData (JSON valeurs Enphase)
 void mqtt_loadConfig(Preferences* prefs);
 void mqtt_saveConfig(Preferences* prefs);
 

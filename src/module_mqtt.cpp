@@ -1,6 +1,7 @@
 // MODULE MQTT - Implémentation
 
 #include "module_mqtt.h"
+#include "module_enphase.h"
 #include <WiFi.h>
 
 // Constantes NVS (évite d'inclure config.h qui contient des définitions)
@@ -8,6 +9,8 @@
 #define PREF_MQTT_PORT "mqtt_port"
 #define PREF_MQTT_USER "mqtt_user"
 #define PREF_MQTT_PASS "mqtt_pass"
+#define PREF_MQTT_TOPIC_PREFIX "mqtt_topic_prefix"
+#define PREF_MQTT_PUBLISH_INTERVAL "mqtt_publish_interval"
 #define PREF_TOPIC_PROD "topic_prod"
 #define PREF_TOPIC_CABANE "topic_cabane"
 #define PREF_TOPIC_CONSO "topic_conso"
@@ -51,6 +54,8 @@ extern void addLogf(const char* format, ...);
 #define DEFAULT_TOPIC_ALARM "PUBLISH82/Alarme"
 #define DEFAULT_TOPIC_ALARM_COMMAND "msunpv/alarm/command"
 #define DEFAULT_MSUNPV_IP "192.168.1.165"
+#define DEFAULT_MQTT_TOPIC_PREFIX "enphase_monitor"
+#define DEFAULT_MQTT_PUBLISH_INTERVAL 15
 
 // Variables exposées (définitions)
 bool mqttConnected = false;
@@ -72,6 +77,8 @@ String config_mqtt_ip;
 int config_mqtt_port;
 String config_mqtt_user;
 String config_mqtt_pass;
+String config_mqtt_topic_prefix;
+int config_mqtt_publish_interval;
 String config_topic_prod;
 String config_topic_cabane;
 String config_topic_conso;
@@ -97,6 +104,9 @@ static String mqttListenTopic;
 static String mqttListenLastTopic;
 static String mqttListenLastValue;
 static unsigned long mqttListenLastTime = 0;
+
+// Publication Enphase : dernier envoi
+static unsigned long lastMqttPublish = 0;
 
 // Fonction privée pour parser les messages MQTT
 static void parseMqttMessage(String topic, String message) {
@@ -150,7 +160,36 @@ void mqtt_init(PubSubClient* client, WiFiClient* wifi) {
   addLog("[MQTT] Module initialisé");
 }
 
-// Reconnexion MQTT
+// Publication des valeurs Enphase vers MQTT (préfixe configurable)
+static void mqtt_publish_enphase() {
+  if (!mqttClient || !mqttClient->connected()) return;
+  String prefix = config_mqtt_topic_prefix.length() > 0 ? config_mqtt_topic_prefix : String(DEFAULT_MQTT_TOPIC_PREFIX);
+  char buf[32];
+
+  #define PUB(topicSuffix, payload) do { \
+    String t = prefix + "/" + (topicSuffix); \
+    if (mqttClient->publish(t.c_str(), (payload))) { /* ok */ } \
+  } while(0)
+
+  snprintf(buf, sizeof(buf), "%.0f", enphase_pact_prod);
+  PUB("power_production", buf);
+  snprintf(buf, sizeof(buf), "%.0f", enphase_pact_conso);
+  PUB("power_consumption", buf);
+  snprintf(buf, sizeof(buf), "%.0f", enphase_pact_grid);
+  PUB("power_grid", buf);
+  snprintf(buf, sizeof(buf), "%.0f", enphase_energy_produced);
+  PUB("energy_produced_today", buf);
+  snprintf(buf, sizeof(buf), "%.0f", enphase_energy_consumed);
+  PUB("energy_consumed_today", buf);
+  snprintf(buf, sizeof(buf), "%.0f", enphase_energy_imported);
+  PUB("energy_imported_today", buf);
+  snprintf(buf, sizeof(buf), "%.0f", enphase_energy_injected);
+  PUB("energy_injected_today", buf);
+  PUB("status", "online");
+  #undef PUB
+}
+
+// Reconnexion MQTT (LWT = offline sur <prefix>/status)
 void mqtt_reconnect() {
   // Enphase V2 : connexion optionnelle — si IP vide, ne pas tenter
   if (config_mqtt_ip.length() == 0) {
@@ -165,20 +204,25 @@ void mqtt_reconnect() {
     mqttClient->setServer(config_mqtt_ip.c_str(), config_mqtt_port);
     addLogf("Connexion MQTT... (Broker: %s:%d)", config_mqtt_ip.c_str(), config_mqtt_port);
     
-    String clientId = "MSunPV-" + String(random(0xffff), HEX);
+    String clientId = "EnphaseMonitor-" + String(random(0xffff), HEX);
+    String prefix = config_mqtt_topic_prefix.length() > 0 ? config_mqtt_topic_prefix : String(DEFAULT_MQTT_TOPIC_PREFIX);
+    String willTopic = prefix + "/status";
+    mqttClient->setBufferSize(2048);
     
     bool connected = false;
     if (config_mqtt_user.length() > 0) {
-      connected = mqttClient->connect(clientId.c_str(), config_mqtt_user.c_str(), config_mqtt_pass.c_str());
+      connected = mqttClient->connect(clientId.c_str(), config_mqtt_user.c_str(), config_mqtt_pass.c_str(), willTopic.c_str(), 0, true, "offline");
     } else {
-      connected = mqttClient->connect(clientId.c_str());
+      connected = mqttClient->connect(clientId.c_str(), willTopic.c_str(), 0, true, "offline");
     }
     
     if (connected) {
       addLog("Connexion MQTT... OK!");
       mqttConnected = true;
-      mqttDataReceived = true;  // Pas de souscriptions, connexion = prêt
+      mqttDataReceived = true;
       mqtt_doSubscribeListen();
+      mqtt_publish_enphase();
+      lastMqttPublish = millis();
     } else {
       addLogf("Connexion MQTT échec, code=%d", mqttClient->state());
       mqttConnected = false;
@@ -200,6 +244,11 @@ void mqtt_loop() {
     }
   } else {
     mqttClient->loop();
+    unsigned long intervalMs = (unsigned long)(config_mqtt_publish_interval > 0 ? config_mqtt_publish_interval : DEFAULT_MQTT_PUBLISH_INTERVAL) * 1000;
+    if (millis() - lastMqttPublish >= intervalMs) {
+      mqtt_publish_enphase();
+      lastMqttPublish = millis();
+    }
   }
 }
 
@@ -241,6 +290,10 @@ void mqtt_loadConfig(Preferences* prefs) {
   config_mqtt_port = prefs->getInt(PREF_MQTT_PORT, DEFAULT_MQTT_PORT);
   config_mqtt_user = prefs->getString(PREF_MQTT_USER, "");
   config_mqtt_pass = prefs->getString(PREF_MQTT_PASS, "");
+  config_mqtt_topic_prefix = prefs->getString(PREF_MQTT_TOPIC_PREFIX, DEFAULT_MQTT_TOPIC_PREFIX);
+  config_mqtt_publish_interval = prefs->getInt(PREF_MQTT_PUBLISH_INTERVAL, DEFAULT_MQTT_PUBLISH_INTERVAL);
+  if (config_mqtt_publish_interval < 5) config_mqtt_publish_interval = 5;
+  if (config_mqtt_publish_interval > 300) config_mqtt_publish_interval = 300;
   config_topic_prod = prefs->getString(PREF_TOPIC_PROD, DEFAULT_TOPIC_SOLAR_PROD);
   config_topic_cabane = prefs->getString(PREF_TOPIC_CABANE, DEFAULT_TOPIC_SOLAR_CABANE);
   config_topic_conso = prefs->getString(PREF_TOPIC_CONSO, DEFAULT_TOPIC_HOME_CONSO);
@@ -265,6 +318,8 @@ void mqtt_saveConfig(Preferences* prefs) {
   prefs->putInt(PREF_MQTT_PORT, config_mqtt_port);
   prefs->putString(PREF_MQTT_USER, config_mqtt_user);
   prefs->putString(PREF_MQTT_PASS, config_mqtt_pass);
+  prefs->putString(PREF_MQTT_TOPIC_PREFIX, config_mqtt_topic_prefix);
+  prefs->putInt(PREF_MQTT_PUBLISH_INTERVAL, config_mqtt_publish_interval);
   prefs->putString(PREF_TOPIC_PROD, config_topic_prod);
   prefs->putString(PREF_TOPIC_CABANE, config_topic_cabane);
   prefs->putString(PREF_TOPIC_CONSO, config_topic_conso);
@@ -283,7 +338,20 @@ void mqtt_saveConfig(Preferences* prefs) {
   addLog("[MQTT] Configuration sauvegardée dans NVS");
 }
 
-// Handler web - Page de configuration (Enphase V2 : broker uniquement)
+// GET /mqttPublishData - Valeurs Enphase actuelles (pour tableau de contrôle)
+void mqtt_handlePublishData(WebServer* server) {
+  char buf[128];
+  snprintf(buf, sizeof(buf),
+    "{\"power_production\":%.0f,\"power_consumption\":%.0f,\"power_grid\":%.0f,"
+    "\"energy_produced_today\":%.0f,\"energy_consumed_today\":%.0f,\"energy_imported_today\":%.0f,\"energy_injected_today\":%.0f,"
+    "\"status\":\"%s\"}",
+    enphase_pact_prod, enphase_pact_conso, enphase_pact_grid,
+    enphase_energy_produced, enphase_energy_consumed, enphase_energy_imported, enphase_energy_injected,
+    enphase_connected ? "online" : "offline");
+  server->send(200, "application/json", buf);
+}
+
+// Handler web - Page de configuration (Enphase V2 : broker + publication Enphase)
 void mqtt_handleConfig(WebServer* server) {
   String html = R"(
 <!DOCTYPE html>
@@ -294,31 +362,70 @@ void mqtt_handleConfig(WebServer* server) {
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
   <title>Configuration MQTT - Enphase Monitor</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #0c0a09; color: #fff; margin: 0; padding: 20px; }
-    .container { max-width: 600px; margin: 0 auto; }
-    h1 { color: #fbbf24; border-bottom: 2px solid #fbbf24; padding-bottom: 10px; }
-    h2 { color: #60a5fa; margin-top: 24px; }
-    .form-group { margin-bottom: 20px; background: #292524; padding: 15px; border-radius: 8px; }
-    label { display: block; color: #9ca3af; margin-bottom: 5px; font-size: 0.9em; }
-    input { width: 100%; padding: 10px; background: #1c1917; border: 1px solid #374151; color: #fff; border-radius: 4px; font-size: 1em; box-sizing: border-box; }
-    .hint { color: #9ca3af; font-size: 0.85em; margin-top: 5px; }
-    .btn { background: #fbbf24; color: #000; border: none; padding: 12px 30px; font-size: 1.1em; font-weight: bold; border-radius: 6px; cursor: pointer; margin-right: 10px; }
-    .btn:hover { background: #f59e0b; }
-    .btn-secondary { background: #374151; color: #fff; }
-    .btn-secondary:hover { background: #4b5563; }
-    .nav { margin-top: 20px; text-align: center; }
-    .status { background: #1c1917; padding: 12px; border-radius: 6px; margin-bottom: 20px; }
-    .status.connected { border-left: 4px solid #22c55e; }
-    .status.disconnected { border-left: 4px solid #ef4444; }
-    @media (max-width: 480px) { body { padding: 10px; } .btn { width: 100%; margin: 5px 0; } }
+    body{font-family:system-ui,sans-serif;background:#0c0a09;color:#e7e5e4;margin:0;padding:20px;}
+    .container{max-width:720px;margin:0 auto;}
+    h1{color:#fbbf24;border-bottom:2px solid rgba(251,191,36,0.4);padding-bottom:10px;}
+    h2{color:#60a5fa;margin-top:24px;}
+    .form-group{margin-bottom:20px;background:#292524;padding:16px;border-radius:10px;border:1px solid #44403c;}
+    label{display:block;color:#a8a29e;margin-bottom:6px;font-size:0.9em;}
+    input{width:100%;padding:10px;background:#1c1917;border:1px solid #44403c;color:#fafaf9;border-radius:6px;box-sizing:border-box;}
+    input:focus{outline:none;border-color:#fbbf24;}
+    .hint{color:#78716c;font-size:0.85em;margin-top:6px;}
+    .btn{background:#fbbf24;color:#000;border:none;padding:12px 24px;font-weight:600;border-radius:8px;cursor:pointer;margin-right:10px;}
+    .btn:hover{background:#f59e0b;}
+    .btn-secondary{background:#44403c;color:#e7e5e4;}
+    .btn-secondary:hover{background:#57534e;}
+    .nav{margin-top:24px;text-align:center;}
+    .status{background:#1c1917;padding:14px;border-radius:8px;margin-bottom:20px;border:1px solid #44403c;}
+    .status.connected{border-left:4px solid #22c55e;}
+    .status.disconnected{border-left:4px solid #ef4444;}
+    .publish-card{background:#292524;border-radius:10px;border:1px solid #44403c;overflow:hidden;margin-top:20px;}
+    .publish-card h2{margin:0;padding:16px;background:rgba(251,191,36,0.08);border-bottom:1px solid #44403c;}
+    .publish-table{width:100%;border-collapse:collapse;}
+    .publish-table th{text-align:left;padding:12px 16px;background:#1c1917;color:#a8a29e;font-size:0.8em;text-transform:uppercase;}
+    .publish-table td{padding:12px 16px;border-bottom:1px solid #3f3f3f;}
+    .publish-table tr:last-child td{border-bottom:none;}
+    .publish-table .topic{font-family:monospace;font-size:0.9em;color:#d6d3d1;}
+    .publish-table .value{text-align:right;color:#fbbf24;font-weight:600;}
+    .publish-table .value.status-online{color:#22c55e;}
+    .publish-table .value.status-offline{color:#ef4444;}
+    .publish-badge{display:inline-block;font-size:0.75em;background:rgba(251,191,36,0.2);color:#fbbf24;padding:2px 8px;border-radius:4px;margin-left:8px;}
   </style>
   <script>
+    var publishPrefix = ')";
+  html += config_mqtt_topic_prefix.length() ? config_mqtt_topic_prefix : String(DEFAULT_MQTT_TOPIC_PREFIX);
+  html += R"(';
     function updateStatus() {
       fetch('/data').then(r => r.json()).then(d => {
         var s = document.getElementById('mqttStatus');
         s.className = 'status ' + (d.mqttConnected ? 'connected' : 'disconnected');
-        s.innerText = d.mqttConnected ? 'Etat: Connecte au broker' : ('Etat: Deconnecte - ' + (d.mqttStateMessage || ''));
+        s.innerText = d.mqttConnected ? 'Connecte au broker' : ('Deconnecte - ' + (d.mqttStateMessage || ''));
       });
+    }
+    function refreshPublishPrefix() {
+      var inp = document.getElementById('mqtt_topic_prefix');
+      if (inp) publishPrefix = inp.value.trim() || ')";
+  html += String(DEFAULT_MQTT_TOPIC_PREFIX);
+  html += R"(';
+      var cells = document.querySelectorAll('.publish-table .topic');
+      var suffixes = ['power_production','power_consumption','power_grid','energy_produced_today','energy_consumed_today','energy_imported_today','energy_injected_today','status'];
+      for (var i = 0; i < cells.length && i < suffixes.length; i++) cells[i].textContent = publishPrefix + '/' + suffixes[i];
+    }
+    function updatePublishTable(data) {
+      var ids = ['power_production','power_consumption','power_grid','energy_produced_today','energy_consumed_today','energy_imported_today','energy_injected_today','status'];
+      for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById('val_' + ids[i]);
+        if (!el) continue;
+        var v = data[ids[i]];
+        if (v === undefined) { el.textContent = '-'; el.className = 'value'; continue; }
+        if (ids[i] === 'status') {
+          el.textContent = v;
+          el.className = 'value status-' + v;
+        } else {
+          el.textContent = v;
+          el.className = 'value';
+        }
+      }
     }
     function startListen() {
       var t = document.getElementById('mqttListenTopic').value.trim();
@@ -343,7 +450,8 @@ void mqtt_handleConfig(WebServer* server) {
     }
     setInterval(updateStatus, 3000);
     setInterval(updateListenData, 2000);
-    window.onload = function() { updateStatus(); updateListenData(); };
+    setInterval(function() { fetch('/mqttPublishData').then(r => r.json()).then(updatePublishTable).catch(function(){}); }, 2000);
+    window.onload = function() { updateStatus(); updateListenData(); refreshPublishPrefix(); fetch('/mqttPublishData').then(r => r.json()).then(updatePublishTable); };
   </script>
 </head>
 <body>
@@ -378,9 +486,41 @@ void mqtt_handleConfig(WebServer* server) {
   html += config_mqtt_pass;
   html += R"(" placeholder="Mot de passe">
       </div>
-      <button type="submit" class="btn">💾 Enregistrer et Redémarrer</button>
-      <button type="button" class="btn btn-secondary" onclick="location.href='/'">❌ Annuler</button>
+      <h2>Publication Enphase</h2>
+      <div class="form-group">
+        <label>Préfixe des topics</label>
+        <input type="text" name="mqtt_topic_prefix" id="mqtt_topic_prefix" value=")";
+  html += config_mqtt_topic_prefix.length() ? config_mqtt_topic_prefix : String(DEFAULT_MQTT_TOPIC_PREFIX);
+  html += F("\" placeholder=\"enphase_monitor\" oninput=\"refreshPublishPrefix()\">\n        <div class=\"hint\">Topics publies: &lt;prefixe&gt;/power_production, etc.</div>\n      </div>\n      <div class=\"form-group\">\n        <label>Intervalle de publication (secondes)</label>\n        <input type=\"number\" name=\"mqtt_publish_interval\" id=\"mqtt_publish_interval\" value=\"");
+  html += String(config_mqtt_publish_interval);
+  html += R"(" min="5" max="300" step="1" placeholder="15">
+        <div class="hint">Entre 5 et 300 s. Defaut: 15 s.</div>
+      </div>
+      <button type="submit" class="btn">Enregistrer et Redemarrer</button>
+      <button type="button" class="btn btn-secondary" onclick="location.href='/'">Annuler</button>
     </form>
+    <div class="publish-card">
+      <h2>Valeurs publiees MQTT <span class="publish-badge">Valeur Enphase (contrôle)</span></h2>
+      <table class="publish-table">
+        <thead><tr><th>Topic publie</th><th>Valeur Enphase</th></tr></thead>
+        <tbody>)";
+  {
+    static const char* suf[] = {"power_production","power_consumption","power_grid","energy_produced_today","energy_consumed_today","energy_imported_today","energy_injected_today","status"};
+    String p = config_mqtt_topic_prefix.length() ? config_mqtt_topic_prefix : String(DEFAULT_MQTT_TOPIC_PREFIX);
+    for (int i = 0; i < 8; i++) {
+      html += "<tr><td class=\"topic\">";
+      html += p;
+      html += "/";
+      html += suf[i];
+      html += "</td><td class=\"value\" id=\"val_";
+      html += suf[i];
+      html += "\">-</td></tr>";
+    }
+  }
+  html += R"(
+        </tbody>
+      </table>
+    </div>
     <h2>Test ecoute MQTT</h2>
     <p class="hint">Connecte au broker uniquement. Saisissez un topic pour ecouter les messages (ex: shellies/+/emeter/0/power).</p>
     <div class="form-group">
@@ -400,7 +540,7 @@ void mqtt_handleConfig(WebServer* server) {
   server->send(200, "text/html", html);
 }
 
-// Handler web - Sauvegarde configuration (Enphase V2 : broker uniquement)
+// Handler web - Sauvegarde configuration (Enphase V2 : broker + publication)
 void mqtt_handleSaveConfig(WebServer* server) {
   if (server->method() == HTTP_POST) {
     config_mqtt_ip = server->arg("mqtt_ip");
@@ -410,6 +550,12 @@ void mqtt_handleSaveConfig(WebServer* server) {
     config_mqtt_user = server->arg("mqtt_user");
     config_mqtt_user.trim();
     config_mqtt_pass = server->arg("mqtt_pass");
+    config_mqtt_topic_prefix = server->arg("mqtt_topic_prefix");
+    config_mqtt_topic_prefix.trim();
+    if (config_mqtt_topic_prefix.length() == 0) config_mqtt_topic_prefix = String(DEFAULT_MQTT_TOPIC_PREFIX);
+    config_mqtt_publish_interval = server->arg("mqtt_publish_interval").toInt();
+    if (config_mqtt_publish_interval < 5) config_mqtt_publish_interval = 5;
+    if (config_mqtt_publish_interval > 300) config_mqtt_publish_interval = 300;
     
     // Sauvegarder dans NVS
     extern Preferences preferences;

@@ -1178,7 +1178,7 @@ void createEnphaseScreen() {
     img_ep_weather_icon_day[i] = lv_img_create(col);
     lv_img_set_src(img_ep_weather_icon_day[i], &icon_na);
     lv_img_set_zoom(img_ep_weather_icon_day[i], 200);
-    lv_obj_align(img_ep_weather_icon_day[i], LV_ALIGN_CENTER, 0, -5);  // descendu 3 px (était -8)
+    lv_obj_align(img_ep_weather_icon_day[i], LV_ALIGN_CENTER, 0, -2);  // -2 = -5 + 3 px (ensemble baissé 3 px)
     
     label_ep_weather_temp_day[i] = lv_label_create(col);
     lv_label_set_text(label_ep_weather_temp_day[i], "--°");

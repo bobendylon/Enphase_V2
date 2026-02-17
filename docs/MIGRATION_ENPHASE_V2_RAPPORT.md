@@ -175,6 +175,17 @@ Créer ou adapter une page Info centralisant les informations de connexion :
 - Publication météo vers HA
 - Publication des stats vers HA (à décider plus tard)
 
+### 5.5 Réactivité tactile LVGL (WiFi connecté) — à faire
+
+**Constat :** Avec le WiFi connecté, l’écran tactile LVGL est parfois lent ou ne réagit qu’après plusieurs appuis. Sans WiFi, la réactivité est immédiate.
+
+**Cause identifiée :** Les requêtes réseau (Enphase toutes les 10 s, météo, Tempo, serveur web) sont **bloquantes** dans le même `loop()` que LVGL. Pendant une requête HTTPS/HTTP (souvent 200 ms à 1 s), `lv_timer_handler()` n’est pas appelé, donc le tactile n’est pas traité.
+
+**À faire (to-do) :**
+
+1. **Option rapide** : Appeler LVGL plus souvent dans le `loop()` (réduire l’intervalle 20 ms et/ou le `delay(5)` en fin de loop) pour améliorer la réactivité dans les intervalles entre deux requêtes. Gain limité mais immédiat.
+2. **Option long terme** : Découper les requêtes réseau (Enphase, météo, Tempo) en mode non-bloquant (machine à états, lecture par petits blocs) pour ne plus bloquer le `loop()` et garder une réactivité tactile constante. Plus de travail, résout la cause.
+
 ---
 
 ## 6. Connexion MQTT – dépannage

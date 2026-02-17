@@ -110,7 +110,7 @@ Cette méthode permet de flasher **sans installer Python ni esptool** sur votre 
 
 1. **Préparer le fichier merged**  
    Vous devez avoir **un seul fichier .bin** qui contient tout (bootloader + table de partitions + application), généré par votre build ou fourni avec le projet.  
-   - Si vous compilez avec PlatformIO : vous pouvez créer ce merged avec `esptool.py merge_bin` (voir section 5).  
+   - Si vous compilez avec PlatformIO : après compilation, lancez la **cible merged** pour générer `firmware.merged.bin` (voir section 6).  
    - Sinon, utilisez le fichier `firmware.merged.bin` (ou nom équivalent) fourni.
 
 2. **Ouvrir l’outil**  
@@ -157,20 +157,32 @@ Donc quand vous flashez **ce fichier unique à l’adresse 0x0**, vous écrivez 
 
 ## 6. Créer le fichier merged (si vous compilez le projet)
 
-Si vous utilisez PlatformIO et voulez générer vous-même le `.bin` merged :
+Si vous utilisez PlatformIO et voulez générer **un seul fichier** à flasher à **0x0** (équivalent aux 3 fichiers) :
 
-Après `pio run`, les binaires se trouvent en général dans `.pio/build/env:esp32-s3-devkitc-1/` (ou le nom de votre env) :
+### 6.1 Méthode recommandée : cible PlatformIO
+
+Après avoir compilé le projet (`pio run`), lancez la **cible merged** :
+
+```bash
+pio run -t merged
+```
+
+Le fichier **firmware.merged.bin** est créé dans le dossier de build (ex. `.pio/build/esp32-s3-devkitc-1/`). C’est ce fichier que vous flashez à l’adresse **0x0** avec [esptool-js](https://espressif.github.io/esptool-js/).
+
+### 6.2 Méthode manuelle (esptool Python)
+
+Après `pio run`, les binaires se trouvent dans `.pio/build/esp32-s3-devkitc-1/` (ou le nom de votre env) :
 
 - `bootloader.bin`
-- `partition_table.bin` (ou nom similaire)
+- `partitions.bin`
 - `firmware.bin` (l’application)
 
-Avec **esptool** (Python) :
+Depuis ce dossier (ou en indiquant les chemins complets), exécutez :
 
 ```bash
 esptool.py --chip esp32s3 merge_bin -o firmware.merged.bin --flash_mode qio --flash_size 16MB ^
   0x0 bootloader.bin ^
-  0x8000 partition_table.bin ^
+  0x8000 partitions.bin ^
   0x10000 firmware.bin
 ```
 

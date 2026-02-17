@@ -1777,6 +1777,7 @@ h1{color:#fbbf24;margin-bottom:8px;font-size:1.6em}
 .links{display:flex;flex-direction:column;gap:12px;max-width:400px}
 .links a{display:block;background:rgba(41,37,36,0.9);border:1px solid rgba(251,191,36,0.3);border-radius:12px;padding:16px 20px;color:#fff;text-decoration:none;font-weight:500;transition:all .2s}
 .links a:hover{background:rgba(55,65,81,0.5);border-color:rgba(251,191,36,0.5)}
+.links .link-disabled{display:block;background:rgba(41,37,36,0.5);border:1px solid #374151;border-radius:12px;padding:16px 20px;color:#6b7280;cursor:default;opacity:0.7}
 .card-exp{margin-top:24px;padding:20px;background:rgba(41,37,36,0.9);border:1px solid rgba(251,191,36,0.3);border-radius:12px;max-width:400px}
 .card-exp h2{color:#d1d5db;font-size:1.1em;margin-bottom:8px}
 .card-exp p{margin-bottom:10px;color:#9ca3af;font-size:0.95em}
@@ -1806,6 +1807,7 @@ h1{color:#fbbf24;margin-bottom:8px;font-size:1.6em}
   html += "<a href='/mqtt?from=enphase'>📡 Config MQTT (broker, publication HA)</a>";
   html += "<a href='/weather?from=enphase'>🌦️ Réglages Météo</a>";
   html += "<a href='/info?from=enphase'>⚡ Réglages Tempo + Infos</a>";
+  html += "<span class='link-disabled'>📊 Statistiques (production, conso, 24h)</span>";
   html += "</div>";
   html += "<div class='card-exp'><h2>💾 Export / Import paramètres</h2>";
   html += "<p>Uniquement ce module : Config Envoy, météo.</p>";
@@ -2208,20 +2210,7 @@ void handleExportConfig() {
   doc[PREF_MQTT_PORT] = config_mqtt_port;
   doc[PREF_MQTT_USER] = config_mqtt_user;
   doc[PREF_MQTT_PASS] = config_mqtt_pass;
-  doc[PREF_TOPIC_PROD] = config_topic_prod;
-  doc[PREF_TOPIC_CABANE] = config_topic_cabane;
-  doc[PREF_TOPIC_CONSO] = config_topic_conso;
-  doc[PREF_TOPIC_ROUTER] = config_topic_router;
-  doc[PREF_TOPIC_WATER] = config_topic_water;
-  doc[PREF_TOPIC_EXT] = config_topic_ext;
-  doc[PREF_TOPIC_SALON] = config_topic_salon;
-  doc[PREF_TOPIC_JOUR] = config_topic_jour;
-  // PREF_TOPIC_PRESENCE_* retirés (Enphase V2)
-  // PREF_TOPIC_ALARM retirés (Enphase V2)
-  doc[PREF_JSON_KEY_CABANE] = config_json_key_cabane;
-  doc[PREF_JSON_KEY_WATER1] = config_json_key_water1;
-  doc[PREF_JSON_KEY_WATER2] = config_json_key_water2;
-  // PREF_MSUNPV_IP retiré (Enphase V2)
+  // Topics + json_key_* MSUNPV Multi retirés (Enphase V2)
   doc[PREF_WEATHER_API] = weather_getApiKey();
   doc[PREF_WEATHER_CITY] = weather_getCity();
   // PREF_SHELLY* retirés (Enphase V2)
@@ -2279,6 +2268,12 @@ void handleImportConfig() {
   for (JsonPair p : doc.as<JsonObject>()) {
     const char* k = p.key().c_str();
     if (strcmp(k, "version") == 0 || strcmp(k, "exported_at") == 0) continue;
+    // Ignorer l'héritage MSUNPV Multi (Enphase V2)
+    if (strcmp(k, PREF_TOPIC_PROD) == 0 || strcmp(k, PREF_TOPIC_CABANE) == 0 || strcmp(k, PREF_TOPIC_CONSO) == 0
+        || strcmp(k, PREF_TOPIC_ROUTER) == 0 || strcmp(k, PREF_TOPIC_WATER) == 0 || strcmp(k, PREF_TOPIC_EXT) == 0
+        || strcmp(k, PREF_TOPIC_SALON) == 0 || strcmp(k, PREF_TOPIC_JOUR) == 0
+        || strcmp(k, PREF_JSON_KEY_CABANE) == 0 || strcmp(k, PREF_JSON_KEY_WATER1) == 0 || strcmp(k, PREF_JSON_KEY_WATER2) == 0)
+      continue;
     JsonVariant v = p.value();
     if (strcmp(k, PREF_MQTT_PORT) == 0 || strcmp(k, PREF_DATE_FORMAT) == 0) {
       if (v.is<int>()) preferences.putInt(k, v.as<int>());

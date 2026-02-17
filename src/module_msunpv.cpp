@@ -15,7 +15,7 @@ extern void addLogf(const char* format, ...);
 #define PREF_MSUNPV_IP "msunpv_ip"
 
 // Valeur par défaut (évite d'inclure config.h)
-#define DEFAULT_MSUNPV_IP "192.168.1.165"
+#define DEFAULT_MSUNPV_IP ""
 
 // Intervalle de mise à jour (défini dans le module)
 static const int MSUNPV_UPDATE_INTERVAL = 10000;  // 10 secondes

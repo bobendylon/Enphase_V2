@@ -8,33 +8,33 @@
 #define CONFIG_H
 
 // ============================================
-// CONFIGURATION WIFI (DÉFAUTS)
+// CONFIGURATION WIFI (DÉFAUTS - vides, config via portail web)
 // ============================================
-const char* WIFI_SSID = "GBOX-Bouygues";           // ⚠️ À MODIFIER
-const char* WIFI_PASSWORD = "Irrintzina2020"; // ⚠️ À MODIFIER
+const char* WIFI_SSID = "";
+const char* WIFI_PASSWORD = "";
 
 // ============================================
 // CONFIGURATION MQTT (DÉFAUTS)
 // ============================================
-const char* MQTT_SERVER = "192.168.1.82";      // ⚠️ Votre broker
+const char* MQTT_SERVER = "";
 const int MQTT_PORT = 1883;
-const char* MQTT_USER = "";                     // Laisser vide si pas d'auth
+const char* MQTT_USER = "";
 const char* MQTT_PASSWORD = "";
 
-// Topics MQTT (DÉFAUTS)
-const char* TOPIC_SOLAR_PROD = "shellies/shellyem-A4E57CBA5ACA/emeter/1/power";
-const char* TOPIC_SOLAR_CABANE = "zigbee2mqtt/Prize Tongou 16A - Cabanne";
-const char* TOPIC_HOME_CONSO = "shellies/shellyem-A4E57CBA5ACA/emeter/0/power";
-const char* TOPIC_ROUTER = "shellies/MSUNPV - shellyem-34945473E575/emeter/0/power";
-const char* TOPIC_WATER_TEMP = "tele/tasmota_3783F2/SENSOR";
-const char* TOPIC_TEMP_EXT = "PUBLISH82/TempExt";
-const char* TOPIC_TEMP_SALON = "PUBLISH82/Salon";
-const char* TOPIC_CONSO_JOUR = "PUBLISH82/ConsoJour";
+// Topics MQTT (DÉFAUTS - exemples, à configurer via portail web)
+const char* TOPIC_SOLAR_PROD = "";
+const char* TOPIC_SOLAR_CABANE = "";
+const char* TOPIC_HOME_CONSO = "";
+const char* TOPIC_ROUTER = "";
+const char* TOPIC_WATER_TEMP = "";
+const char* TOPIC_TEMP_EXT = "";
+const char* TOPIC_TEMP_SALON = "";
+const char* TOPIC_CONSO_JOUR = "";
 
 // ============================================
 // CONFIGURATION M'SunPV ROUTER (DÉFAUT)
 // ============================================
-const char* MSUNPV_IP = "192.168.1.165";        // ⚠️ IP de votre routeur M'SunPV
+const char* MSUNPV_IP = "";
 const int MSUNPV_PORT = 80;
 const int MSUNPV_UPDATE_INTERVAL = 10000;       // 10 secondes
 

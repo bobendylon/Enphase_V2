@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Générateur de config — Enphase V2</title>
+  <style>
+    :root {
+      --bg: #0c0a09;
+      --card: #1c1917;
+      --card-border: rgba(251, 191, 36, 0.2);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #fbbf24;
+      --accent-hover: #f59e0b;
+      --danger: #dc2626;
+      --success: #22c55e;
+      --radius: 12px;
+      --font: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(160deg, var(--bg) 0%, #1a1918 50%, #0f0e0d 100%);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      padding: 24px;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 640px; margin: 0 auto; }
+    h1 {
+      font-size: 1.75rem;
+      color: var(--accent);
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card h2 {
+      font-size: 1rem;
+      color: var(--accent);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card h2 span { font-size: 1.2em; }
+    .row {
+      margin-bottom: 14px;
+    }
+    .row:last-child { margin-bottom: 0; }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      background: #292524;
+      border: 1px solid #44403c;
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.2);
+    }
+    input::placeholder { color: #78716c; }
+    .row-inline {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .row-inline input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+    .row-inline label { margin-bottom: 0; text-transform: none; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      text-decoration: none;
+      font-family: inherit;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: var(--accent);
+      color: #0c0a09;
+      width: 100%;
+      margin-top: 8px;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary {
+      background: #374151;
+      color: var(--text);
+      margin-right: 10px;
+      margin-top: 12px;
+    }
+    .btn-secondary:hover { background: #4b5563; }
+    .actions { margin-top: 24px; }
+    .hint { font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+    .file-row {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(251, 191, 36, 0.15);
+    }
+    input[type="file"] { color: var(--muted); font-size: 0.9rem; }
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--success);
+      color: #0c0a09;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-weight: 600;
+      opacity: 0;
+      transition: transform 0.3s, opacity 0.3s;
+      z-index: 100;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    .upload-proc .upload-method { margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(251, 191, 36, 0.15); }
+    .upload-proc .upload-method:first-of-type { margin-top: 0; padding-top: 0; border-top: 0; }
+    .upload-proc h3 { font-size: 0.95rem; color: var(--text); margin-bottom: 10px; font-weight: 600; }
+    .upload-proc .steps { margin: 0; padding-left: 20px; color: var(--text); font-size: 0.9rem; }
+    .upload-proc .steps li { margin-bottom: 8px; }
+    .upload-proc code { background: #292524; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: var(--accent); }
+    .addr-table { width: 100%; max-width: 320px; margin: 10px 0; border-collapse: collapse; font-size: 0.9rem; }
+    .addr-table th, .addr-table td { padding: 8px 10px; text-align: left; border: 1px solid #44403c; }
+    .addr-table th { background: #292524; color: var(--muted); font-weight: 600; }
+    .addr-table td { background: #1c1917; }
+    @media (max-width: 600px) {
+      body { padding: 16px; }
+      .card { padding: 16px; }
+      h1 { font-size: 1.4rem; }
+      .addr-table { font-size: 0.85rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>⚙️ Générateur de config Enphase V2</h1>
+    <p class="sub">Remplissez les champs puis téléchargez le JSON à importer dans le moniteur (page Infos → Importer la config).</p>
+
+    <div class="card">
+      <h2><span>📶</span> WiFi</h2>
+      <div class="row">
+        <label>SSID</label>
+        <input type="text" id="wifi_ssid" placeholder="Nom du réseau">
+      </div>
+      <div class="row">
+        <label>Mot de passe</label>
+        <input type="password" id="wifi_pass" placeholder="Mot de passe WiFi">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span>📡</span> MQTT</h2>
+      <div class="row">
+        <label>IP ou hostname du broker</label>
+        <input type="text" id="mqtt_ip" placeholder="192.168.1.82">
+      </div>
+      <div class="row">
+        <label>Port</label>
+        <input type="number" id="mqtt_port" value="1883" min="1" max="65535" placeholder="1883">
+      </div>
+      <div class="row">
+        <label>Utilisateur (optionnel)</label>
+        <input type="text" id="mqtt_user" placeholder="">
+      </div>
+      <div class="row">
+        <label>Mot de passe (optionnel)</label>
+        <input type="password" id="mqtt_pass" placeholder="">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span>🌦️</span> Météo (OpenWeatherMap)</h2>
+      <div class="row">
+        <label>Ville</label>
+        <input type="text" id="weather_city" placeholder="Paris, Lyon, Geaune…">
+      </div>
+      <div class="row">
+        <label>Clé API OpenWeatherMap</label>
+        <input type="text" id="weather_api" placeholder="Votre clé API">
+        <p class="hint">Gratuite sur <a href="https://openweathermap.org/api" target="_blank" style="color: var(--accent)">openweathermap.org</a></p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span>☀️</span> Enphase Envoy</h2>
+      <div class="row">
+        <label>IP de l’Envoy</label>
+        <input type="text" id="enphase_ip" placeholder="192.168.1.xx">
+      </div>
+      <div class="row">
+        <label>Email (compte Enphase)</label>
+        <input type="text" id="enphase_user" placeholder="vous@exemple.com">
+      </div>
+      <div class="row">
+        <label>Mot de passe Enphase</label>
+        <input type="password" id="enphase_pwd" placeholder="">
+      </div>
+      <div class="row">
+        <label>Numéro de série Envoy (optionnel)</label>
+        <input type="text" id="enphase_serial" placeholder="">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span>🖥️</span> Système</h2>
+      <div class="row row-inline">
+        <input type="checkbox" id="screen_flipped">
+        <label for="screen_flipped">Écran retourné 180°</label>
+      </div>
+      <div class="row">
+        <label>Écran actif</label>
+        <select id="active_screen">
+          <option value="1" selected>Enphase</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Format de date (0–3)</label>
+        <select id="date_format">
+          <option value="0">0 — Dimanche 28/12/25</option>
+          <option value="1" selected>1 — Dim. 28 Déc. 2025</option>
+          <option value="2">2 — 28/12/2025</option>
+          <option value="3">3 — Dim. 28/12/2025</option>
+        </select>
+      </div>
+      <div class="row">
+        <label>Luminosité jour (0–255)</label>
+        <input type="number" id="brightness_day" value="200" min="0" max="255">
+      </div>
+      <div class="row">
+        <label>Luminosité nuit (0–255)</label>
+        <input type="number" id="brightness_night" value="80" min="0" max="255">
+      </div>
+      <div class="row row-inline">
+        <input type="checkbox" id="tempo_enabled">
+        <label for="tempo_enabled">EDF Tempo activé</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="file-row">
+        <label>Charger un JSON existant pour pré-remplir</label>
+        <input type="file" id="loadFile" accept=".json" style="margin-top:8px">
+      </div>
+    </div>
+
+    <div class="card upload-proc">
+      <h2><span>📤</span> Procédure d’upload du firmware</h2>
+      <p class="sub" style="margin-bottom:16px">Utiliser <strong>Chrome</strong> ou <strong>Edge</strong> (pas Safari). Connecter l’ESP32-S3 en USB.</p>
+      <p style="margin-bottom:12px"><a href="https://espressif.github.io/esptool-js/" target="_blank" rel="noopener" class="btn btn-secondary" style="margin-top:0">🔗 Ouvrir l’outil Espressif (esptool-js)</a></p>
+
+      <div class="upload-method">
+        <h3>Méthode 1 — Fichier merged (recommandé)</h3>
+        <ol class="steps">
+          <li>Générer <code>firmware.merged.bin</code> : après <code>pio run</code>, lancer <code>pio run -t merged</code>. Le fichier est dans <code>.pio/build/esp32-s3-devkitc-1/</code>.</li>
+          <li>Sur le site Espressif : <strong>Connect</strong> → choisir le port de l’ESP32-S3.</li>
+          <li>Baudrate : <strong>921600</strong> (ou 460800 / 115200 en cas d’erreur).</li>
+          <li>Dans le tableau Flash : <strong>Adresse</strong> <code>0x0</code>, <strong>Fichier</strong> <code>firmware.merged.bin</code>.</li>
+          <li>Flash size : <strong>16MB</strong>, Flash mode : <strong>qio</strong>.</li>
+          <li>Lancer le flash.</li>
+        </ol>
+      </div>
+
+      <div class="upload-method">
+        <h3>Méthode 2 — Les 3 fichiers</h3>
+        <p class="hint" style="margin-bottom:10px">Après <code>pio run</code>, les 3 fichiers sont dans <code>.pio/build/esp32-s3-devkitc-1/</code>.</p>
+        <ol class="steps">
+          <li>Sur le site Espressif : <strong>Connect</strong> → choisir le port. Baudrate : <strong>921600</strong> (ou moins si besoin).</li>
+          <li>Dans le tableau Flash, ajouter <strong>3 lignes</strong> :
+            <table class="addr-table">
+              <thead><tr><th>Adresse</th><th>Fichier</th></tr></thead>
+              <tbody>
+                <tr><td><code>0x0</code></td><td><code>bootloader.bin</code></td></tr>
+                <tr><td><code>0x8000</code></td><td><code>partitions.bin</code></td></tr>
+                <tr><td><code>0x10000</code></td><td><code>firmware.bin</code></td></tr>
+              </tbody>
+            </table>
+          </li>
+          <li>Flash size : <strong>16MB</strong>, Flash mode : <strong>qio</strong>. Lancer le flash.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-secondary" onclick="copyJson()">📋 Copier le JSON</button>
+      <button type="button" class="btn btn-primary" onclick="downloadJson()">⬇️ Générer et télécharger enphase_config.json</button>
+    </div>
+  </div>
+
+  <div id="toast">Fichier téléchargé</div>
+
+  <script>
+    function buildConfig() {
+      var o = {
+        version: 1,
+        exported_at: Math.floor(Date.now() / 1000),
+        wifi_ssid: document.getElementById('wifi_ssid').value.trim(),
+        wifi_pass: document.getElementById('wifi_pass').value,
+        mqtt_ip: document.getElementById('mqtt_ip').value.trim(),
+        mqtt_port: parseInt(document.getElementById('mqtt_port').value, 10) || 1883,
+        mqtt_user: document.getElementById('mqtt_user').value.trim(),
+        mqtt_pass: document.getElementById('mqtt_pass').value,
+        weather_api: document.getElementById('weather_api').value.trim(),
+        weather_city: document.getElementById('weather_city').value.trim(),
+        enphase_ip: document.getElementById('enphase_ip').value.trim(),
+        enphase_user: document.getElementById('enphase_user').value.trim(),
+        enphase_pwd: document.getElementById('enphase_pwd').value,
+        enphase_serial: document.getElementById('enphase_serial').value.trim(),
+        screen_flipped: document.getElementById('screen_flipped').checked,
+        active_screen: parseInt(document.getElementById('active_screen').value, 10),
+        date_format: parseInt(document.getElementById('date_format').value, 10),
+        brightness_day: Math.max(0, Math.min(255, parseInt(document.getElementById('brightness_day').value, 10) || 200)),
+        brightness_night: Math.max(0, Math.min(255, parseInt(document.getElementById('brightness_night').value, 10) || 80)),
+        tempo_enabled: document.getElementById('tempo_enabled').checked
+      };
+      return o;
+    }
+
+    function downloadJson() {
+      var cfg = buildConfig();
+      var json = JSON.stringify(cfg, null, 2);
+      var blob = new Blob([json], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'enphase_config.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      var t = document.getElementById('toast');
+      t.textContent = 'Fichier téléchargé';
+      t.classList.add('show');
+      setTimeout(function() { t.classList.remove('show'); }, 2500);
+    }
+
+    function copyJson() {
+      var cfg = buildConfig();
+      var json = JSON.stringify(cfg, null, 2);
+      navigator.clipboard.writeText(json).then(function() {
+        var t = document.getElementById('toast');
+        t.textContent = 'JSON copié dans le presse-papier';
+        t.classList.add('show');
+        setTimeout(function() { t.classList.remove('show'); }, 2500);
+      }).catch(function() {
+        alert('Copie échouée');
+      });
+    }
+
+    document.getElementById('loadFile').addEventListener('change', function() {
+      var f = this.files[0];
+      if (!f) return;
+      var r = new FileReader();
+      r.onload = function() {
+        try {
+          var data = JSON.parse(r.result);
+          function set(id, v) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            if (el.type === 'checkbox') el.checked = !!v;
+            else if (v !== undefined && v !== null && v !== '') el.value = v;
+          }
+          set('wifi_ssid', data.wifi_ssid);
+          set('wifi_pass', data.wifi_pass);
+          set('mqtt_ip', data.mqtt_ip);
+          set('mqtt_port', data.mqtt_port);
+          set('mqtt_user', data.mqtt_user);
+          set('mqtt_pass', data.mqtt_pass);
+          set('weather_api', data.weather_api);
+          set('weather_city', data.weather_city);
+          set('enphase_ip', data.enphase_ip);
+          set('enphase_user', data.enphase_user);
+          set('enphase_pwd', data.enphase_pwd);
+          set('enphase_serial', data.enphase_serial);
+          set('screen_flipped', data.screen_flipped);
+          set('active_screen', data.active_screen);
+          set('date_format', data.date_format);
+          set('brightness_day', data.brightness_day);
+          set('brightness_night', data.brightness_night);
+          set('tempo_enabled', data.tempo_enabled);
+          document.getElementById('toast').textContent = 'Config chargée';
+          document.getElementById('toast').classList.add('show');
+          setTimeout(function() { document.getElementById('toast').classList.remove('show'); }, 2000);
+        } catch (e) {
+          alert('Fichier JSON invalide');
+        }
+      };
+      r.readAsText(f);
+      this.value = '';
+    });
+  </script>
+</body>
+</html>

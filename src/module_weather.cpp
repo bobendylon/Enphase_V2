@@ -44,9 +44,9 @@ int weather_today_noon_code = 800;
 int weather_today_evening_temp = 0;
 int weather_today_evening_code = 800;
 
-// Variables internes (static)
-static String config_weather_api = "78188c1b1c05985fb712bc87d4ed09a4";
-static String config_weather_city = "Geaune";
+// Variables internes (static) - vides par défaut, config via portail web
+static String config_weather_api = "";
+static String config_weather_city = "";
 static unsigned long lastWeatherUpdate = 0;
 static const unsigned long WEATHER_UPDATE_INTERVAL = 600000;  // 10 minutes
 
@@ -4258,8 +4258,8 @@ void weather_handleAPI(WebServer* server) {
 
 // Chargement configuration depuis NVS
 void weather_loadConfig(Preferences* prefs) {
-  config_weather_api = prefs->getString(PREF_WEATHER_API, "78188c1b1c05985fb712bc87d4ed09a4");
-  config_weather_city = prefs->getString(PREF_WEATHER_CITY, "Geaune");
+  config_weather_api = prefs->getString(PREF_WEATHER_API, "");
+  config_weather_city = prefs->getString(PREF_WEATHER_CITY, "");
   addLog("[Météo] Configuration chargée depuis NVS");
 }
 

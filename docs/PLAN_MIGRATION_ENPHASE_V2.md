@@ -14,8 +14,8 @@
 
 Créer le nouveau projet **à côté** du projet actuel, dans le même répertoire parent :
 
-- Actuel : `C:\Users\capel\Documents\PlatformIO\Projects\MSunPV_Monitor_V11_multi`
-- Nouveau : `C:\Users\capel\Documents\PlatformIO\Projects\Enphase_V2`  
+- Actuel : `C:\Users\...\PlatformIO\Projects\MSunPV_Monitor_V11_multi`
+- Nouveau : `C:\Users\...\PlatformIO\Projects\Enphase_V2`  
   (ou `MSunPV_Enphase_V2` si vous préférez garder le préfixe)
 
 ### 1.2 Méthodes de copie possibles
@@ -28,7 +28,7 @@ Créer le nouveau projet **à côté** du projet actuel, dans le même répertoi
 5. Ouvrir ce nouveau dossier dans Cursor/PlatformIO.
 
 **Option B — Ligne de commande (PowerShell)**  
-Depuis `C:\Users\capel\Documents\PlatformIO\Projects\` :
+Depuis `C:\Users\...\PlatformIO\Projects\` :
 
 ```powershell
 Copy-Item -Path "MSunPV_Monitor_V11_multi" -Destination "Enphase_V2" -Recurse

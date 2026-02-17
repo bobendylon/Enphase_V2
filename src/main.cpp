@@ -204,6 +204,7 @@ void handleDoUpdate();
 void handleInfoWeb();
 void handleSettingsWeb();
 void handleRestart();
+void handleResetFactory();
 // V13.0 - SD Card status
 void handleSDStatus();
 // V12.1 - Rotation écran
@@ -596,6 +597,7 @@ void setup() {
   server.on("/settings", handleSettingsWeb);
   server.on("/restart", HTTP_POST, handleRestart);
   server.on("/restart", HTTP_GET, handleRestart);
+  server.on("/resetFactory", HTTP_POST, handleResetFactory);
   // V12.1 - Rotation écran
   server.on("/saveScreenFlip", HTTP_POST, handleSaveScreenFlip);
   // V15.0 - Sélection écran (MQTT / Enphase)
@@ -736,7 +738,7 @@ void setupWiFi() {
 // SETUP OTA
 void setupOTA() {
   ArduinoOTA.setHostname("MSunPV-Monitor-V3.1");
-  ArduinoOTA.setPassword("msunpv2024");
+  ArduinoOTA.setPassword("msunpv");  // Modifier si besoin, ou laisser pour OTA
   
   ArduinoOTA.onStart([]() {
     String type = (ArduinoOTA.getCommand() == U_FLASH) ? "sketch" : "filesystem";
@@ -2035,9 +2037,17 @@ void handleInfoWeb() {
   html += "<p><span class='label'>Uptime:</span> <span class='value'>" + String(days) + "j " + String(hours) + "h " + String(mins) + "m</span></p>";
   html += "<p><span class='label'>RAM libre:</span> <span class='value'>" + String(ESP.getFreeHeap()/1024) + " KB</span></p>";
   html += "<p><span class='label'>PSRAM libre:</span> <span class='value'>" + String(ESP.getFreePsram()/1024) + " KB</span></p>";
-  html += "<p style='margin-top:15px'><button onclick='restartDevice()' class='btn' style='display:inline-block;cursor:pointer;border:none;background:#ef4444;color:white'>🔴 Redémarrer</button></p></div>";
+  html += "<p style='margin-top:15px'><button onclick='restartDevice()' class='btn' style='display:inline-block;cursor:pointer;border:none;background:#ef4444;color:white'>🔴 Redémarrer</button></p>";
+  html += "<p style='margin-top:10px'><button onclick='resetFactory()' class='btn' style='display:inline-block;cursor:pointer;border:none;background:#7f1d1d;color:white'>⚠️ Reset usine (effacer toute la config)</button></p>";
+  html += "<p style='color:#9ca3af;font-size:0.85em;margin-top:8px'>Efface WiFi, MQTT, Enphase, Météo, écran… L'ESP redémarre puis passe en mode AP (Enphase-Monitor-Setup).</p></div>";
   
   html += R"(<script>
+function resetFactory() {
+  if (!confirm('Effacer TOUTE la config (WiFi, MQTT, Enphase, Météo, écran…) et redémarrer ?\n\nL\'ESP passera en mode point d\'accès (Enphase-Monitor-Setup) au prochain démarrage.')) return;
+  fetch('/resetFactory', { method: 'POST' })
+    .then(function() { document.body.innerHTML = '<div style=\"color:#fff;padding:20px;text-align:center\"><p>Config effacée. Redémarrage…</p></div>'; })
+    .catch(function() { alert('Erreur'); });
+}
 function importConfig() {
   var f = document.getElementById('importFile');
   var st = document.getElementById('importStatus');
@@ -2681,6 +2691,16 @@ void handleSettingsWeb() {
 
 void handleRestart() {
   server.send(200, "text/plain", "Redémarrage en cours...");
+  delay(1000);
+  ESP.restart();
+}
+
+void handleResetFactory() {
+  preferences.begin(PREF_NAMESPACE, false);
+  preferences.clear();
+  preferences.end();
+  addLog("[Système] Reset usine : NVS effacé");
+  server.send(200, "text/plain", "Config effacee. Redemarrage...");
   delay(1000);
   ESP.restart();
 }

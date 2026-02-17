@@ -37,23 +37,23 @@ extern void addLogf(const char* format, ...);
 // M'SunPV retiré (Enphase V2)
 #define MQTT_RECONNECT_INTERVAL 5000
 
-// Valeurs par défaut depuis config.h
-#define DEFAULT_MQTT_SERVER "192.168.1.82"
+// Valeurs par défaut (vides ou génériques, config via portail web)
+#define DEFAULT_MQTT_SERVER ""
 #define DEFAULT_MQTT_PORT 1883
-#define DEFAULT_TOPIC_SOLAR_PROD "shellies/shellyem-A4E57CBA5ACA/emeter/1/power"
-#define DEFAULT_TOPIC_SOLAR_CABANE "zigbee2mqtt/Prize Tongou 16A - Cabanne"
-#define DEFAULT_TOPIC_HOME_CONSO "shellies/shellyem-A4E57CBA5ACA/emeter/0/power"
-#define DEFAULT_TOPIC_ROUTER "shellies/MSUNPV - shellyem-34945473E575/emeter/0/power"
-#define DEFAULT_TOPIC_WATER_TEMP "tele/tasmota_3783F2/SENSOR"
-#define DEFAULT_TOPIC_TEMP_EXT "PUBLISH82/TempExt"
-#define DEFAULT_TOPIC_TEMP_SALON "PUBLISH82/Salon"
-#define DEFAULT_TOPIC_CONSO_JOUR "PUBLISH82/ConsoJour"
+#define DEFAULT_TOPIC_SOLAR_PROD ""
+#define DEFAULT_TOPIC_SOLAR_CABANE ""
+#define DEFAULT_TOPIC_HOME_CONSO ""
+#define DEFAULT_TOPIC_ROUTER ""
+#define DEFAULT_TOPIC_WATER_TEMP ""
+#define DEFAULT_TOPIC_TEMP_EXT ""
+#define DEFAULT_TOPIC_TEMP_SALON ""
+#define DEFAULT_TOPIC_CONSO_JOUR ""
 #define DEFAULT_TOPIC_PRESENCE_BEN "jeedom/presence/ben/state"
-#define DEFAULT_TOPIC_PRESENCE_FRANCINE "jeedom/presence/Francine"
+#define DEFAULT_TOPIC_PRESENCE_FRANCINE "jeedom/presence/francine/state"
 #define DEFAULT_TOPIC_PRESENCE_VICTOR "jeedom/presence/victor/state"
-#define DEFAULT_TOPIC_ALARM "PUBLISH82/Alarme"
-#define DEFAULT_TOPIC_ALARM_COMMAND "msunpv/alarm/command"
-#define DEFAULT_MSUNPV_IP "192.168.1.165"
+#define DEFAULT_TOPIC_ALARM ""
+#define DEFAULT_TOPIC_ALARM_COMMAND ""
+#define DEFAULT_MSUNPV_IP ""
 #define DEFAULT_MQTT_TOPIC_PREFIX "enphase_monitor"
 #define DEFAULT_MQTT_PUBLISH_INTERVAL 15
 

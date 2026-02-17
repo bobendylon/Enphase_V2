@@ -2,6 +2,7 @@
 
 #include "module_weather.h"
 #include <lvgl.h>
+#include <time.h>
 
 // Constantes NVS (évite d'inclure config.h qui contient des définitions)
 #define PREF_WEATHER_API "weather_api"
@@ -187,13 +188,33 @@ void weather_update() {
   lastWeatherUpdate = now;
 }
 
-// Fonction helper - Retourner icône SVG selon code météo (V3.4)
-// Fonction getSVGIcon() - Icons PNG en BASE64
-// Genere automatiquement - Ne pas editer manuellement
+// Helper web - Nom complet du jour pour prévision index (0=tomorrow, 1=day+2, ...). Page /weather uniquement.
+static String getForecastDayNameFull(int index) {
+  if (index < 0 || index > 5 || weather_forecast_days[index] == '-') return "-";
+  time_t now = time(NULL);
+  if (now < 946684800) return String((char)weather_forecast_days[index]);
+  struct tm *t = localtime(&now);
+  int wday = (t->tm_wday + 1 + index) % 7;  // 0=Dim, 1=Lun, ...
+  static const char* daysFull[] = {"Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"};
+  return String(daysFull[wday]);
+}
 
+// Helper web - Emoji selon code météo OpenWeatherMap (page /weather uniquement, sans impact LVGL)
+static String getEmojiForCode(int code) {
+  if (code >= 800 && code < 803) return "☀️";
+  if (code >= 803) return "☁️";
+  if (code >= 700) return "🌫️";
+  if (code >= 600) return "❄️";
+  if (code >= 500) return "🌧️";
+  if (code >= 300) return "🌧️";
+  if (code >= 200) return "⛈️";
+  return "🌤️";
+}
+
+// Fonction helper - Retourner icône SVG selon code météo (V3.4)
+// Utilise getEmojiForCode pour la page web (emojis), icônes PNG désactivées
 static String getSVGIcon(int code) {
-  // TEST: Retourner un simple SVG pour isoler le bug
-  return "<svg width='50' height='50'><circle cx='25' cy='25' r='20' fill='orange'/></svg>";
+  return getEmojiForCode(code);
   
   // PNG Base64 data for weather icons (DÉSACTIVÉ pour test)
   /*
@@ -3927,6 +3948,8 @@ body {
 .weather-card { background: #1c1917; border: 1px solid rgba(96,165,250,0.2); border-radius: 16px; padding: 30px; margin-bottom: 30px; }
 .current-weather { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 40px; align-items: center; }
 .weather-icon-large { width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; }
+.weather-emoji-large { font-size: 80px; line-height: 1; }
+.forecast-emoji { font-size: 48px; line-height: 1; }
 .weather-info h2 { font-size: 40px; margin-bottom: 10px; color: #fbbf24; }
 .weather-info p { font-size: 18px; color: #d1d5db; margin: 8px 0; }
 .weather-details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
@@ -3994,10 +4017,10 @@ body {
   <div class='weather-card'>
     <div class='current-weather'>
       <div>
-        <div id='iconCurrent' class='weather-icon-large'>)";
+        <div id='iconCurrent' class='weather-icon-large'><span class='weather-emoji-large'>)";
   html += getSVGIcon(weather_code);
-  html += R"(</div>
-      </div>
+  html += R"(</span></div>
+  html += R"(      </div>
       
       <div class='weather-info'>
         <h2 id='tempCurrent'>)";
@@ -4056,44 +4079,44 @@ body {
   <div class='forecast-grid' id='forecastContainer'>
     <div class='forecast-card'>
       <div class='forecast-day'>)";
-  html += weather_forecast_days[0];
+  html += getForecastDayNameFull(0);
   html += R"(</div>
-      <div class='forecast-icon'>)";
+      <div class='forecast-icon'><span class='forecast-emoji'>)";
   html += getSVGIcon(weather_forecast_codes[0]);
-  html += R"(</div>
+  html += R"(</span></div>
       <div class='forecast-temp'>)";
   html += String(weather_forecast_temps[0]);
   html += R"(°C</div>
     </div>
     <div class='forecast-card'>
       <div class='forecast-day'>)";
-  html += weather_forecast_days[1];
+  html += getForecastDayNameFull(1);
   html += R"(</div>
-      <div class='forecast-icon'>)";
+      <div class='forecast-icon'><span class='forecast-emoji'>)";
   html += getSVGIcon(weather_forecast_codes[1]);
-  html += R"(</div>
+  html += R"(</span></div>
       <div class='forecast-temp'>)";
   html += String(weather_forecast_temps[1]);
   html += R"(°C</div>
     </div>
     <div class='forecast-card'>
       <div class='forecast-day'>)";
-  html += weather_forecast_days[2];
+  html += getForecastDayNameFull(2);
   html += R"(</div>
-      <div class='forecast-icon'>)";
+      <div class='forecast-icon'><span class='forecast-emoji'>)";
   html += getSVGIcon(weather_forecast_codes[2]);
-  html += R"(</div>
+  html += R"(</span></div>
       <div class='forecast-temp'>)";
   html += String(weather_forecast_temps[2]);
   html += R"(°C</div>
     </div>
     <div class='forecast-card'>
       <div class='forecast-day'>)";
-  html += weather_forecast_days[3];
+  html += getForecastDayNameFull(3);
   html += R"(</div>
-      <div class='forecast-icon'>)";
+      <div class='forecast-icon'><span class='forecast-emoji'>)";
   html += getSVGIcon(weather_forecast_codes[3]);
-  html += R"(</div>
+  html += R"(</span></div>
       <div class='forecast-temp'>)";
   html += String(weather_forecast_temps[3]);
   html += R"(°C</div>

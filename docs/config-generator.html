@@ -162,6 +162,48 @@
     .addr-table th, .addr-table td { padding: 8px 10px; text-align: left; border: 1px solid #44403c; }
     .addr-table th { background: #292524; color: var(--muted); font-weight: 600; }
     .addr-table td { background: #1c1917; }
+    .manual-box {
+      background: linear-gradient(145deg, #1c1917 0%, #292524 100%);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      margin-bottom: 24px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .manual-box summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: var(--accent);
+      list-style: none;
+      user-select: none;
+      transition: background 0.2s;
+    }
+    .manual-box summary::-webkit-details-marker { display: none; }
+    .manual-box summary::after {
+      content: "▼";
+      font-size: 0.75rem;
+      opacity: 0.8;
+      transition: transform 0.25s;
+    }
+    .manual-box[open] summary::after { transform: rotate(180deg); }
+    .manual-box summary:hover { background: rgba(251, 191, 36, 0.08); }
+    .manual-box .manual-body {
+      padding: 0 20px 20px;
+      color: var(--text);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .manual-box .manual-body h3 { font-size: 0.95rem; color: var(--accent); margin: 18px 0 8px; }
+    .manual-box .manual-body h3:first-child { margin-top: 0; }
+    .manual-box .manual-body p { margin: 0 0 10px; color: #d1d5db; }
+    .manual-box .manual-body ul { margin: 6px 0 10px; padding-left: 22px; }
+    .manual-box .manual-body li { margin-bottom: 4px; }
+    .manual-box .manual-body strong { color: var(--text); }
     @media (max-width: 600px) {
       body { padding: 16px; }
       .card { padding: 16px; }
@@ -174,6 +216,57 @@
   <div class="wrap">
     <h1>⚙️ Générateur de config Enphase V2</h1>
     <p class="sub">Remplissez les champs puis téléchargez le JSON à importer dans le moniteur (page Infos → Importer la config).</p>
+
+    <div class="manual-box">
+      <details>
+        <summary>📖 Mode d'emploi</summary>
+        <div class="manual-body">
+          <h3>☀️ Qu’est-ce qu’Enphase V2 ?</h3>
+          <p>Firmware pour ESP32-S3 (écran 480×480) : affichage des données de production et consommation d’un <strong>Enphase Envoy</strong>, plus MQTT et météo. Configuration via le serveur web intégré (Enphase Monitor).</p>
+
+          <h3>🚀 Première utilisation après flash</h3>
+          <ul>
+            <li>📶 <strong>WiFi</strong> : au démarrage sans config, l’ESP crée le réseau <strong>Enphase-Monitor-Setup</strong>. Connectez-vous (sans mot de passe), ouvrez <strong>http://192.168.4.1</strong> et saisissez le WiFi de votre box.</li>
+            <li>🌐 <strong>Accès web</strong> : une fois en WiFi, ouvrez l’IP du module dans le navigateur (ex. http://192.168.1.xxx) → vous arrivez sur Enphase Monitor.</li>
+            <li>📡 <strong>Config Envoy</strong> : Réglages → Config Envoy → IP de l’Envoy + identifiants Enphase. Le moniteur affiche alors production et consommation.</li>
+            <li>🖥️ <strong>Écran</strong> : la roue dentée donne accès aux réglages (WiFi, Infos, Météo, Logs).</li>
+          </ul>
+
+          <h3>📱 Mode d’emploi de l’appareil</h3>
+          <p><strong>Écran tactile</strong></p>
+          <ul>
+            <li>🖥️ Vue principale : production solaire, consommation, flux (PV ↔ maison ↔ réseau), météo, prévisions.</li>
+            <li>⚙️ <strong>Roue dentée</strong> : ouvre les Réglages (WiFi, Infos système, Météo, Maintenance, Logs).</li>
+            <li>🌦️ Toucher la zone météo pour ouvrir le détail (matin / midi / soir, prévisions).</li>
+          </ul>
+          <p><strong>Interface web (Enphase Monitor)</strong></p>
+          <ul>
+            <li>🏠 Page d’accueil : mêmes cartes que l’écran (production, conso, météo). Liens vers Config WiFi, Envoy, MQTT, Logs, Infos, OTA.</li>
+            <li>⚙️ <strong>Réglages</strong> : WiFi (scan + connexion), Config Envoy (IP, email, mot de passe, série), Config MQTT, Réglages Météo, Réglages Tempo + Infos.</li>
+            <li>📶 <strong>WiFi</strong> : scan des réseaux, saisie SSID/mot de passe, état de connexion (IP, signal).</li>
+            <li>📡 <strong>Config Envoy</strong> : IP de l’Envoy, compte Enphase (email + mot de passe). Le token est géré automatiquement (valide 30 jours).</li>
+            <li>🌦️ <strong>Météo</strong> : ville + clé API OpenWeatherMap. Prévisions 4 jours, détail actuel (ressenti, humidité, vent, etc.).</li>
+            <li>📡 <strong>Config MQTT</strong> : broker (IP, port, user/pass), préfixe des topics, intervalle de publication. Données Enphase publiées (puissance, énergies du jour, status).</li>
+            <li>ℹ️ <strong>Infos</strong> : état WiFi/MQTT/Envoy/Météo, EDF Tempo (activer/désactiver, couleurs jour/demain), luminosité écran, format de date, export/import config, redémarrage, <strong>Reset usine</strong>.</li>
+            <li>⚡ <strong>EDF Tempo</strong> : affichage Bleu / Blanc / Rouge (aujourd’hui et demain). « Demain en vert » = en attente (RTE publie vers 11 h).</li>
+            <li>📊 <strong>Logs</strong> : logs système en direct.</li>
+            <li>🔄 <strong>Mise à jour OTA</strong> : mise à jour du firmware depuis le navigateur (sans câble).</li>
+            <li>⚠️ <strong>Reset usine</strong> (page Infos) : efface toute la config (WiFi, MQTT, Enphase, Météo…) et redémarre. L’ESP repasse en mode AP (Enphase-Monitor-Setup).</li>
+          </ul>
+
+          <h3>📄 Utiliser cette page (générateur de config)</h3>
+          <ul>
+            <li>✏️ Remplir les champs (WiFi, MQTT, Météo, Enphase, options écran).</li>
+            <li>⬇️ Cliquer sur <strong>Générer et télécharger enphase_config.json</strong>.</li>
+            <li>📤 Sur le moniteur : page <strong>Infos</strong> → <strong>Importer la config</strong> → choisir le fichier JSON téléchargé. Redémarrer si besoin.</li>
+            <li>📂 Option : <strong>Charger un JSON existant</strong> pour pré-remplir le formulaire (ex. avant de modifier quelques valeurs).</li>
+          </ul>
+
+          <h3>📤 Flasher le firmware</h3>
+          <p>Utiliser l’outil Espressif (esptool-js) dans Chrome ou Edge. Plus bas sur cette page : section <strong>Procédure d’upload</strong> (fichier merged ou 3 fichiers).</p>
+        </div>
+      </details>
+    </div>
 
     <div class="card">
       <h2><span>📶</span> WiFi</h2>

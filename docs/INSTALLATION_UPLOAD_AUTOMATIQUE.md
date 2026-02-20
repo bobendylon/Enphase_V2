@@ -68,6 +68,26 @@ Netlify redéploie automatiquement en 1 à 2 minutes.
    - Nom : `enphase-install`  
    - URL finale : https://enphase-install.netlify.app
 
+3. **Visibilité du dépôt GitHub**  
+   - **Rendre privé** : *Settings* → *Danger Zone* → *Change repository visibility* → *Make private* → confirmer  
+   - **Rendre public** (inverser) : *Settings* → *Danger Zone* → *Change repository visibility* → *Make public* → confirmer  
+   - La page https://enphase-install.netlify.app fonctionne dans les deux cas  
+   - Si privé : Netlify doit garder l'accès au dépôt (*Build & deploy* → *Repository*). Si le déploiement échoue, aller dans *Site configuration* → *Build & deploy* → *Link repository* et réautoriser l'accès.
+
+---
+
+### Déployer une mise à jour (à chaque nouvelle version)
+
+| Étape | Action |
+|-------|--------|
+| 1 | Modifier le code, tester en local |
+| 2 | `pio run -t merged` (compile et génère le merged.bin) |
+| 3 | `copy .pio\build\esp32-s3-devkitc-1\firmware.merged.bin netlify-deploy\` |
+| 4 | `git add netlify-deploy\firmware.merged.bin` (et autres fichiers modifiés si besoin) |
+| 5 | `git commit -m "Update firmware"` |
+| 6 | `git push origin main` |
+| 7 | Attendre 1–2 min → Netlify redéploie → https://enphase-install.netlify.app est à jour |
+
 ---
 
 ### Fichiers concernés

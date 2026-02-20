@@ -198,7 +198,7 @@ static void mqtt_publish_ha_discovery() {
   char topicBuf[80];
   char payloadBuf[420];
   const char* dev = "{\"identifiers\":[\"";
-  const char* dev2 = "\"],\"name\":\"Enphase Monitor\",\"manufacturer\":\"MSunPV\",\"model\":\"Enphase V2\"}";
+  const char* dev2 = "\"],\"name\":\"Enphase Monitor\",\"manufacturer\":\"Monitor_EV2\",\"model\":\"Enphase V2\"}";
   String devBlock = String(dev) + prefix + dev2;
 
   #define DISC_SENSOR(id, name, unit, devClass, stateClass) do { \

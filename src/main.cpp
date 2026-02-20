@@ -626,6 +626,7 @@ void setup() {
   // Shelly EM retiré (Enphase V2)
   // V12.0 - Enphase Envoy
   server.on("/enphase", []() { enphase_handleWeb(&server); });
+  server.on("/enphase-config", []() { enphase_handleConfigPage(&server); });
   server.on("/enphaseData", []() { enphase_handleData(&server); });
   server.on("/enphaseStatus", []() { enphase_handleStatus(&server); });
   server.on("/enphaseTest", HTTP_POST, []() { enphase_handleTest(&server); });
@@ -1805,7 +1806,7 @@ h1{color:#fbbf24;margin-bottom:8px;font-size:1.6em}
   html += "<p class='sub'>Retour vers l'accueil Enphase ci-dessus. Liens vers les configurations.</p>";
   html += "<div class='links'>";
   html += "<a href='/wifi?from=enphase'>📶 Réglages WiFi (scan, connexion, infos)</a>";
-  html += "<a href='/enphase?from=enphase'>📡 Config Envoy (4 paramètres)</a>";
+  html += "<a href='/enphase-config?from=enphase'>📡 Config Envoy (4 paramètres)</a>";
   html += "<a href='/mqtt?from=enphase'>📡 Config MQTT (broker, publication HA)</a>";
   html += "<a href='/weather?from=enphase'>🌦️ Réglages Météo</a>";
   html += "<a href='/info?from=enphase'>⚡ Réglages Tempo + Infos</a>";
@@ -1954,7 +1955,7 @@ void handleInfoWeb() {
   html += "<p style='margin-bottom:15px'><span class='label'>IP:</span> <span class='value'>" + (config_enphase_ip.length() > 0 ? config_enphase_ip : "Non configuré") + "</span></p>";
   html += "<p style='margin-bottom:15px'><span class='label'>User:</span> <span class='value'>" + (config_enphase_user.length() > 0 ? config_enphase_user : "Non configuré") + "</span></p>";
   html += "<p style='margin-bottom:15px'><span class='label'>Serial:</span> <span class='value'>" + (config_enphase_serial.length() > 0 ? config_enphase_serial : "Non configuré") + "</span></p>";
-  html += "<p style='margin-top:10px'><button onclick='configEnphase()' class='btn' style='display:inline-block;cursor:pointer;border:none'>⚙️ Configurer</button></p></div>";
+  html += String("<p style='margin-top:10px'><a href='/enphase-config") + (server.hasArg("from") && server.arg("from") == "enphase" ? "?from=enphase" : "?from=info") + "' class='btn' style='display:inline-block;text-decoration:none;cursor:pointer;border:none'>⚙️ Configurer</a></p></div>";
   
   html += "<div class='card'><h2>⛅ Météo</h2>";
   html += "<p><span class='label'>Ville:</span> <span class='value'>" + weather_getCity() + "</span></p>";
@@ -2072,33 +2073,6 @@ function importConfig() {
 }
 </script>
 <script>
-function configEnphase() {
-  let ip = prompt('IP Enphase Envoy:', ')" + config_enphase_ip + R"(');
-  if (ip === null) return;
-  
-  let user = prompt('Identifiant Enphase:', ')" + config_enphase_user + R"(');
-  if (user === null) return;
-  
-  let pwd = prompt('Mot de passe Enphase:', ')" + config_enphase_pwd + R"(');
-  if (pwd === null) return;
-  
-  let serial = prompt('Numéro de série Envoy:', ')" + config_enphase_serial + R"(');
-  if (serial === null) return;
-  
-  fetch('/saveEnphaseConfig', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: 'ip=' + encodeURIComponent(ip) + 
-          '&user=' + encodeURIComponent(user) + 
-          '&pwd=' + encodeURIComponent(pwd) + 
-          '&serial=' + encodeURIComponent(serial)
-  })
-  .then(() => {
-    alert('Configuration Enphase sauvegardée !');
-    location.reload();
-  });
-}
-
 function toggleScreenFlip() {
   alert('Fonction appelée !'); // Test
   let currentState = )" + String(screenFlipped ? 1 : 0) + R"(;

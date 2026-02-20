@@ -42,6 +42,7 @@ extern unsigned long enphase_last_success;
 void enphase_init(WiFiClientSecure* client);
 void enphase_update();  // À appeler dans loop()
 void enphase_handleWeb(WebServer* server);           // GET /enphase
+void enphase_handleConfigPage(WebServer* server);    // GET /enphase-config
 void enphase_handleData(WebServer* server);           // GET /enphaseData
 void enphase_handleStatus(WebServer* server);         // GET /enphaseStatus
 void enphase_handleTest(WebServer* server);           // POST /enphaseTest

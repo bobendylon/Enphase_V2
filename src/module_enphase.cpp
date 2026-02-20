@@ -557,7 +557,6 @@ void enphase_init(WiFiClientSecure* client) {
     
     if (config_enphase_ip.length() < 7) {
         addLog("[Enphase] ⚠️ Pas d'IP configurée");
-        addLog("[Enphase] ATTENTION - Pas d'IP configuree");
         enphase_status = "Non configuré";
         enphase_connected = false;
         return;
@@ -593,7 +592,7 @@ void enphase_init(WiFiClientSecure* client) {
 void enphase_handleWeb(WebServer* server) {
   bool fromEnphase = (server->hasArg("from") && server->arg("from") == "enphase");
   String backUrl = fromEnphase ? "/enphase-monitor" : "/";
-  String configUrl = String("/info") + (fromEnphase ? "?from=enphase" : "");
+  String configUrl = String("/enphase-config") + (fromEnphase ? "?from=enphase" : "?from=info");
   bool hasEnphase = (config_enphase_ip.length() > 0);
 
   if (!hasEnphase) {
@@ -1047,6 +1046,81 @@ window.onload = updateData;
   server->send(200, "text/html", html);
 }
 
+void enphase_handleConfigPage(WebServer* server) {
+  bool fromEnphase = (server->hasArg("from") && server->arg("from") == "enphase");
+  bool fromInfo = (server->hasArg("from") && server->arg("from") == "info");
+  String backUrl = fromEnphase ? "/enphase-monitor" : (fromInfo ? "/info" : "/");
+  String fromParam = server->hasArg("from") ? server->arg("from") : "";
+  String backLabel = fromEnphase ? "Enphase Monitor" : (fromParam == "info" ? "Infos" : "Accueil");
+
+  String html = R"(<!DOCTYPE html><html><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<link rel='icon' type='image/svg+xml' href='/favicon.ico'>
+<title>Configuration Enphase Envoy - Enphase V2</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;min-height:100vh;padding:20px}
+.back{display:inline-block;background:#374151;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;margin-bottom:24px}
+.back:hover{background:#4b5563}
+h1{color:#fb923c;margin-bottom:8px;font-size:1.6em}
+.sub{color:#9ca3af;margin-bottom:24px;font-size:0.95em}
+.form-group{margin-bottom:20px}
+.form-group label{display:block;color:#9ca3af;margin-bottom:8px;font-weight:500}
+.form-group input{width:100%;max-width:400px;padding:12px 16px;background:#1c1917;border:1px solid #374151;border-radius:8px;color:#fff;font-size:16px}
+.form-group input:focus{outline:none;border-color:#fb923c}
+.btn{display:inline-block;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;cursor:pointer;border:none;font-size:16px}
+.btn-primary{background:#fb923c;color:#0c0a09}
+.btn-primary:hover{background:#f97316}
+.btn-secondary{background:#374151;color:#fff;margin-right:12px}
+.btn-secondary:hover{background:#4b5563}
+.msg{background:rgba(251,191,36,0.15);border-left:4px solid #f59e0b;padding:14px;border-radius:8px;margin-top:24px;max-width:400px;color:#d1d5db;font-size:0.9em}
+#testResult{margin-top:12px;padding:12px;border-radius:8px;display:none}
+#testResult.ok{background:rgba(34,197,94,0.2);border:1px solid #22c55e;color:#22c55e;display:block}
+#testResult.err{background:rgba(239,68,68,0.2);border:1px solid #ef4444;color:#ef4444;display:block}
+@media(max-width:480px){body{padding:12px}.form-group input{max-width:100%}}
+</style></head><body>)";
+
+  html += "<a href='" + backUrl + "' class='back'>&larr; Retour " + backLabel + "</a>";
+  html += "<h1>Configuration Enphase Envoy</h1>";
+  html += "<p class='sub'>IP, identifiants et numéro de série de la passerelle Envoy.</p>";
+  html += "<form method='POST' action='/saveEnphaseConfig' id='cfgForm'>";
+  if (fromParam.length() > 0) {
+    html += "<input type='hidden' name='from' value='" + fromParam + "'>";
+  }
+  html += "<div class='form-group'><label>Adresse IP ou hostname de l'Envoy</label>";
+  html += "<input type='text' name='ip' placeholder='192.168.1.100' value='" + config_enphase_ip + "'></div>";
+  html += "<div class='form-group'><label>Identifiant Enphase (email)</label>";
+  html += "<input type='text' name='user' placeholder='votre@email.com' value='" + config_enphase_user + "'></div>";
+  html += "<div class='form-group'><label>Mot de passe Enphase</label>";
+  html += "<input type='password' name='pwd' placeholder='********' value='" + config_enphase_pwd + "'></div>";
+  html += "<div class='form-group'><label>Numéro de série Envoy</label>";
+  html += "<input type='text' name='serial' placeholder='123456789012' value='" + config_enphase_serial + "'></div>";
+  html += "<div style='margin-top:24px'>";
+  html += "<button type='button' class='btn btn-secondary' onclick='testConnection()'>Tester la connexion</button>";
+  html += "<button type='submit' class='btn btn-primary'>Sauvegarder</button></div>";
+  html += "</form>";
+  html += "<div id='testResult'></div>";
+  html += "<div class='msg'>Un redémarrage (débrancher puis rebrancher) est recommandé pour une bonne prise en compte des paramètres.</div>";
+  html += R"(
+<script>
+function testConnection() {
+  var ip = document.querySelector('input[name="ip"]').value;
+  if (!ip) { alert('Saisissez l\'IP de l\'Envoy.'); return; }
+  var r = document.getElementById('testResult');
+  r.className = ''; r.style.display = 'block'; r.textContent = 'Test en cours...';
+  fetch('/enphaseTest', { method: 'POST' })
+    .then(function(res) { return res.json(); })
+    .then(function(d) {
+      r.className = d.success ? 'ok' : 'err';
+      r.textContent = d.success ? 'Connexion OK : ' + d.message : 'Erreur : ' + d.message;
+    })
+    .catch(function(e) { r.className = 'err'; r.textContent = 'Erreur : ' + e; });
+}
+</script></body></html>)";
+
+  server->send(200, "text/html", html);
+}
+
 void enphase_handleData(WebServer* server) {
   String json = "{";
   json += "\"pact_conso\":" + String(enphase_pact_conso, 1) + ",";
@@ -1116,24 +1190,28 @@ void enphase_handleSaveConfig(WebServer* server) {
     config_enphase_user = server->arg("user");
     config_enphase_pwd = server->arg("pwd");
     config_enphase_serial = server->arg("serial");
-    
+
     // Sauvegarder dans NVS
     extern Preferences preferences;
     preferences.begin(PREF_NAMESPACE, false);
     enphase_saveConfig(&preferences);
     preferences.end();
-    
-    String html = R"(<!DOCTYPE html><html><head><meta charset='utf-8'>
-<meta http-equiv='refresh' content='2;url=/info'>
-<title>Sauvegarde - MSunPV</title>
-<style>body{background:#0c0a09;color:#fff;font-family:Arial;padding:20px;text-align:center}
-h1{color:#22c55e;margin-top:50px}
-p{color:#9ca3af;margin-top:20px}</style>
-</head><body>
-<h1>✅ Configuration Enphase Envoy sauvegardée !</h1>
-<p>Redirection automatique dans 2 secondes...</p>
-</body></html>)";
-    
+
+    String redirectUrl = "/enphase-config";
+    if (server->hasArg("from")) {
+      String fromVal = server->arg("from");
+      if (fromVal == "enphase") redirectUrl = "/enphase-monitor";
+      else if (fromVal == "info") redirectUrl = "/info";
+    }
+
+    String html = "<!DOCTYPE html><html><head><meta charset='utf-8'>";
+    html += "<meta http-equiv='refresh' content='2;url=" + redirectUrl + "'>";
+    html += "<title>Sauvegarde - Enphase V2</title>";
+    html += "<style>body{background:#0c0a09;color:#fff;font-family:Arial;padding:20px;text-align:center}";
+    html += "h1{color:#22c55e;margin-top:50px}p{color:#9ca3af;margin-top:20px}</style></head><body>";
+    html += "<h1>Configuration Enphase Envoy sauvegardee !</h1>";
+    html += "<p>Redirection automatique dans 2 secondes...</p></body></html>";
+
     server->send(200, "text/html", html);
   }
 }

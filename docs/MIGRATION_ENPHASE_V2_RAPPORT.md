@@ -2,7 +2,7 @@
 
 **Projet :** Enphase_V2  
 **Source :** MSunPV_Monitor_V11_multi  
-**Dernière mise à jour :** 16 février 2025 (publication MQTT Enphase, tableau config, unités)
+**Dernière mise à jour :** 17 février 2025 (HA Discovery, export/import unifié)
 
 ![Vue d’ensemble Enphase Monitor](schema_enphase_monitor.png)
 
@@ -70,7 +70,7 @@ Transformer le moniteur MSunPV multi-écrans en un affichage unique Enphase :
 | User/Pass en NVS | `module_mqtt.cpp`, `config.h` | `config_mqtt_user`, `config_mqtt_pass` configurables depuis le web |
 | Connexion optionnelle | `module_mqtt.cpp` | Si IP vide → pas de tentative de connexion |
 | Config MQTT accessible | `main.cpp` | Lien Réglages et Enphase Monitor → `/mqtt`. mqtt_loop() toujours actif, outil écoute et diagnostic. |
-| **Publication Enphase** (fév. 2025) | `module_mqtt.cpp` | Publication périodique des valeurs Enphase (puissances W, énergies Wh, status) sur topics `<prefixe>/*` ; préfixe et intervalle (5–300 s) configurables ; LWT sur `<prefixe>/status` ; tableau de contrôle sur la page MQTT (topic, valeur Enphase, unité). Endpoint `/mqttPublishData` pour le tableau. |
+| **Publication Enphase** (fév. 2025) | `module_mqtt.cpp` | Publication périodique des valeurs Enphase (puissances W, énergies Wh, status) sur topics `<prefixe>/*` ; préfixe et intervalle (5–300 s) configurables ; LWT sur `<prefixe>/status` ; tableau de contrôle sur la page MQTT (topic, valeur Enphase, unité). Endpoint `/mqttPublishData` pour le tableau. Voir § 2.9 pour Home Assistant Discovery. |
 
 Exemple de vue des topics dans **MQTT Explorer** (préfixe `enphase_monitor`) :
 
@@ -96,6 +96,25 @@ Exemple de vue des topics dans **MQTT Explorer** (préfixe `enphase_monitor`) :
 | Page Screens | `main.cpp` | Suppression formulaire déverrouillage, affichage direct de la sélection d’écran |
 | Préférences | `main.cpp` | Suppression load/save `PREF_SCREEN_LOCK_*` |
 | Export/Import | `main.cpp` | Suppression des clés verrouillage |
+
+### 2.9 Home Assistant MQTT Discovery (fév. 2025)
+
+| Modification | Fichiers | Détail |
+|--------------|----------|--------|
+| MQTT Discovery | `module_mqtt.cpp` | Publication des messages de découverte sur `homeassistant/sensor/<prefix>/*/config` à la connexion MQTT |
+| Option activable | `module_mqtt.cpp` | Case à cocher « Activer Home Assistant Discovery » (configurable, activée par défaut) |
+| Entités créées | — | Production solaire, Conso maison, Réseau (W) ; Prod jour, Conso jour, Importé jour, Injecté jour (Wh) ; Statut (online/offline) |
+| Regroupement | — | Toutes les entités sous un seul appareil « Enphase Monitor » (MSunPV, Enphase V2) |
+| Retain | — | Messages discovery en retain pour que HA récupère la config après redémarrage |
+
+### 2.10 Export / Import config unifié (fév. 2025)
+
+| Modification | Fichiers | Détail |
+|--------------|----------|--------|
+| Fichier unique | `main.cpp` | Les deux boutons export (page Infos + Enphase Monitor) produisent le même fichier **Enphase_MonitorV2_config.json** |
+| Nom standardisé | — | Remplacer `msunpv_config.json` par `Enphase_MonitorV2_config.json` |
+| Nouvelles clés MQTT | `main.cpp` | `mqtt_topic_prefix`, `mqtt_publish_interval`, `mqtt_ha_discovery` ajoutées à l’export et à l’import |
+| Générateur HTML | `docs/config-generator.html` | Champs MQTT (préfixe, intervalle, HA Discovery) ; chargement JSON pré-remplit ces champs ; téléchargement en `Enphase_MonitorV2_config.json` |
 
 ---
 
@@ -165,10 +184,10 @@ Créer ou adapter une page Info centralisant les informations de connexion :
 - **À faire :** toujours proposer un bouton ou une section « Scan » pour lister les réseaux et changer de WiFi.
 - **À vérifier :** le mode AP (point d’accès) fonctionne correctement — ne pas modifier cette partie.
 
-### 5.3 Publication Enphase vers Home Assistant
+### 5.3 Publication Enphase vers Home Assistant — résolu (fév. 2025)
 
-- MQTT Discovery (auto-découverte des entités dans HA)
-- Publier : prod, conso, prod/conso du jour, statut
+- **MQTT Discovery** : implémenté ; entités créées automatiquement dans HA sans config manuelle.
+- **Données publiées** : prod, conso, réseau (W) ; prod/conso/importé/injecté du jour (Wh) ; statut.
 
 ### 5.4 Optionnel
 

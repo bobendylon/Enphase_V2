@@ -37,6 +37,7 @@ extern String config_mqtt_user;
 extern String config_mqtt_pass;
 extern String config_mqtt_topic_prefix;
 extern int config_mqtt_publish_interval;
+extern bool config_mqtt_ha_discovery;
 extern String config_topic_prod;
 extern String config_topic_cabane;
 extern String config_topic_conso;

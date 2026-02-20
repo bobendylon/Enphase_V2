@@ -213,7 +213,6 @@ void handleSaveScreenFlip();
 void handleScreensWeb();
 void handleSaveScreens();
 void handleEnphaseMonitorHome();
-void handleExportEnphaseConfig();
 void handleEnphaseMonitorData();
 void handleEnphaseReglages();
 void handleDisclaimer();
@@ -592,7 +591,7 @@ void setup() {
   server.on("/statsData", []() { stats_handleData(&server); });
   server.on("/info", handleInfoWeb);
   server.on("/export", handleExportConfig);
-  server.on("/exportEnphase", handleExportEnphaseConfig);
+  server.on("/exportEnphase", handleExportConfig);  // Même contenu que /export
   server.on("/import", HTTP_POST, handleImportConfig);
   server.on("/settings", handleSettingsWeb);
   server.on("/restart", HTTP_POST, handleRestart);
@@ -1812,7 +1811,7 @@ h1{color:#fbbf24;margin-bottom:8px;font-size:1.6em}
   html += "<span class='link-disabled'>📊 Statistiques (production, conso, 24h)</span>";
   html += "</div>";
   html += "<div class='card-exp'><h2>💾 Export / Import paramètres</h2>";
-  html += "<p>Uniquement ce module : Config Envoy, météo.</p>";
+  html += "<p>Toute la config (WiFi, MQTT, Enphase, Météo, écran).</p>";
   html += "<p><a href='/exportEnphase' class='btn-exp'>📤 Exporter la config</a></p>";
   html += "<p><span class='label'>Importer :</span></p>";
   html += "<input type='file' id='importEnphaseFile' accept='.json'>";
@@ -2220,6 +2219,9 @@ void handleExportConfig() {
   doc[PREF_MQTT_PORT] = config_mqtt_port;
   doc[PREF_MQTT_USER] = config_mqtt_user;
   doc[PREF_MQTT_PASS] = config_mqtt_pass;
+  doc["mqtt_topic_prefix"] = config_mqtt_topic_prefix;
+  doc["mqtt_publish_interval"] = config_mqtt_publish_interval;
+  doc["mqtt_ha_discovery"] = config_mqtt_ha_discovery;
   // Topics + json_key_* MSUNPV Multi retirés (Enphase V2)
   doc[PREF_WEATHER_API] = weather_getApiKey();
   doc[PREF_WEATHER_CITY] = weather_getCity();
@@ -2236,24 +2238,7 @@ void handleExportConfig() {
   doc[PREF_TEMPO_ENABLED] = tempo_enabled;
   String out;
   serializeJson(doc, out);
-  server.sendHeader("Content-Disposition", "attachment; filename=\"msunpv_config.json\"");
-  server.send(200, "application/json", out);
-}
-
-// Export config Enphase uniquement (paramètres du module : Envoy, verrouillage, météo)
-void handleExportEnphaseConfig() {
-  JsonDocument doc;
-  doc["version"] = 1;
-  doc["exported_at"] = (unsigned long)time(nullptr);
-  doc[PREF_ENPHASE_IP] = config_enphase_ip;
-  doc[PREF_ENPHASE_USER] = config_enphase_user;
-  doc[PREF_ENPHASE_PWD] = config_enphase_pwd;
-  doc[PREF_ENPHASE_SERIAL] = config_enphase_serial;
-  doc[PREF_WEATHER_API] = weather_getApiKey();
-  doc[PREF_WEATHER_CITY] = weather_getCity();
-  String out;
-  serializeJson(doc, out);
-  server.sendHeader("Content-Disposition", "attachment; filename=\"msunpv_enphase_config.json\"");
+  server.sendHeader("Content-Disposition", "attachment; filename=\"Enphase_MonitorV2_config.json\"");
   server.send(200, "application/json", out);
 }
 
@@ -2288,6 +2273,13 @@ void handleImportConfig() {
     if (strcmp(k, PREF_MQTT_PORT) == 0 || strcmp(k, PREF_DATE_FORMAT) == 0) {
       if (v.is<int>()) preferences.putInt(k, v.as<int>());
       else if (v.is<long>()) preferences.putInt(k, (int)v.as<long>());
+    } else if (strcmp(k, "mqtt_publish_interval") == 0) {
+      if (v.is<int>()) { int n = v.as<int>(); if (n >= 5 && n <= 300) preferences.putInt(k, n); }
+      else if (v.is<long>()) { long n = v.as<long>(); if (n >= 5 && n <= 300) preferences.putInt(k, (int)n); }
+    } else if (strcmp(k, "mqtt_ha_discovery") == 0) {
+      if (v.is<bool>()) preferences.putBool(k, v.as<bool>());
+      else if (v.is<int>()) preferences.putBool(k, v.as<int>() != 0);
+      else if (v.is<long>()) preferences.putBool(k, v.as<long>() != 0);
     } else if (strcmp(k, PREF_ACTIVE_SCREEN) == 0) {
       if (v.is<int>()) { uint8_t n = (uint8_t)v.as<int>(); if (n <= 2) preferences.putUChar(k, n); }
       else if (v.is<long>()) { uint8_t n = (uint8_t)v.as<long>(); if (n <= 2) preferences.putUChar(k, n); }

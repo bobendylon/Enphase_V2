@@ -257,7 +257,7 @@
           <h3>📄 Utiliser cette page (générateur de config)</h3>
           <ul>
             <li>✏️ Remplir les champs (WiFi, MQTT, Météo, Enphase, options écran).</li>
-            <li>⬇️ Cliquer sur <strong>Générer et télécharger enphase_config.json</strong>.</li>
+            <li>⬇️ Cliquer sur <strong>Générer et télécharger Enphase_MonitorV2_config.json</strong>.</li>
             <li>📤 Sur le moniteur : page <strong>Infos</strong> → <strong>Importer la config</strong> → choisir le fichier JSON téléchargé. Redémarrer si besoin.</li>
             <li>📂 Option : <strong>Charger un JSON existant</strong> pour pré-remplir le formulaire (ex. avant de modifier quelques valeurs).</li>
           </ul>
@@ -298,6 +298,20 @@
         <label>Mot de passe (optionnel)</label>
         <input type="password" id="mqtt_pass" placeholder="">
       </div>
+      <div class="row">
+        <label>Préfixe des topics</label>
+        <input type="text" id="mqtt_topic_prefix" placeholder="enphase_monitor" value="enphase_monitor">
+        <p class="hint">Ex: enphase_monitor → topics enphase_monitor/power_production, etc.</p>
+      </div>
+      <div class="row">
+        <label>Intervalle de publication (secondes, 5–300)</label>
+        <input type="number" id="mqtt_publish_interval" value="15" min="5" max="300">
+      </div>
+      <div class="row row-inline">
+        <input type="checkbox" id="mqtt_ha_discovery" checked>
+        <label for="mqtt_ha_discovery">Home Assistant Discovery activé</label>
+      </div>
+      <p class="hint">Crée les entités automatiquement dans HA sans config manuelle.</p>
     </div>
 
     <div class="card">
@@ -414,7 +428,7 @@
 
     <div class="actions">
       <button type="button" class="btn btn-secondary" onclick="copyJson()">📋 Copier le JSON</button>
-      <button type="button" class="btn btn-primary" onclick="downloadJson()">⬇️ Générer et télécharger enphase_config.json</button>
+      <button type="button" class="btn btn-primary" onclick="downloadJson()">⬇️ Générer et télécharger Enphase_MonitorV2_config.json</button>
     </div>
   </div>
 
@@ -431,6 +445,9 @@
         mqtt_port: parseInt(document.getElementById('mqtt_port').value, 10) || 1883,
         mqtt_user: document.getElementById('mqtt_user').value.trim(),
         mqtt_pass: document.getElementById('mqtt_pass').value,
+        mqtt_topic_prefix: document.getElementById('mqtt_topic_prefix').value.trim() || 'enphase_monitor',
+        mqtt_publish_interval: Math.max(5, Math.min(300, parseInt(document.getElementById('mqtt_publish_interval').value, 10) || 15)),
+        mqtt_ha_discovery: document.getElementById('mqtt_ha_discovery').checked,
         weather_api: document.getElementById('weather_api').value.trim(),
         weather_city: document.getElementById('weather_city').value.trim(),
         enphase_ip: document.getElementById('enphase_ip').value.trim(),
@@ -453,7 +470,7 @@
       var blob = new Blob([json], { type: 'application/json' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'enphase_config.json';
+      a.download = 'Enphase_MonitorV2_config.json';
       a.click();
       URL.revokeObjectURL(a.href);
       var t = document.getElementById('toast');
@@ -494,6 +511,9 @@
           set('mqtt_port', data.mqtt_port);
           set('mqtt_user', data.mqtt_user);
           set('mqtt_pass', data.mqtt_pass);
+          set('mqtt_topic_prefix', data.mqtt_topic_prefix);
+          set('mqtt_publish_interval', data.mqtt_publish_interval);
+          set('mqtt_ha_discovery', data.mqtt_ha_discovery);
           set('weather_api', data.weather_api);
           set('weather_city', data.weather_city);
           set('enphase_ip', data.enphase_ip);

@@ -2,7 +2,7 @@
 
 **Projet :** Enphase_V2  
 **Source :** MSunPV_Monitor_V11_multi  
-**Dernière mise à jour :** 17 février 2025 (HA Discovery, export/import unifié)
+**Dernière mise à jour :** 17 février 2025 (Config Envoy page unique, WiFi scan STA, HA manufacturer Monitor_EV2)
 
 ![Vue d’ensemble Enphase Monitor](schema_enphase_monitor.png)
 
@@ -173,21 +173,19 @@ Créer ou adapter une page Info centralisant les informations de connexion :
 | Enphase | État de connexion à l’Envoy |
 | Tempo | Deux badges colorés selon l’information EDF Tempo : couleur du jour (rouge/blanc/bleu) et couleur du lendemain ; vert pour « demain » si l’info n’a pas encore été reçue entre minuit et l’heure d’acquisition. Vérifier le comportement du module Tempo (horaire d’appel API Tomorrow), adapter la logique des badges et afficher l’heure d’acquisition de la couleur « demain ». |
 
-#### 5.2.2 Config Envoy — bouton « Configuration »
+#### 5.2.2 Config Envoy — résolu (fév. 2025)
 
-- **Actuel :** le lien « Config Envoy » depuis Réglages pointe correctement vers `/enphase?from=enphase`. Le lien « Configuration » (ailleurs sur la page) pointe vers une URL incorrecte.
-- **À faire :** soit réutiliser les popups de configuration Envoy existantes (4 paramètres : IP, user, pwd, serial), soit proposer une popup unique contenant les 4 champs. Un clic sur « Configuration » doit ouvrir une popup ou une page dédiée pour saisir les 4 paramètres sans erreur de chemin.
+- **Modifications :** page unique `/enphase-config` avec formulaire (IP, user, pwd, serial), bouton Tester la connexion et Sauvegarder. Liens mis à jour depuis Réglages, Info et page Envoy. Plus de popups.
 
-#### 5.2.3 Réglages WiFi — scan réseaux
+#### 5.2.3 Réglages WiFi — scan réseaux — résolu (fév. 2025)
 
-- **Actuel :** l’option de scan des réseaux WiFi n’est pas visible ou pas accessible lorsque l’ESP32 est déjà connecté.
-- **À faire :** toujours proposer un bouton ou une section « Scan » pour lister les réseaux et changer de WiFi.
-- **À vérifier :** le mode AP (point d’accès) fonctionne correctement — ne pas modifier cette partie.
+- **Modifications :** lien « Config WiFi » dans le header Enphase Monitor. Page `/wifi` avec formulaire complet et bouton « Scanner les réseaux » accessible en mode STA.
 
 ### 5.3 Publication Enphase vers Home Assistant — résolu (fév. 2025)
 
 - **MQTT Discovery** : implémenté ; entités créées automatiquement dans HA sans config manuelle.
 - **Données publiées** : prod, conso, réseau (W) ; prod/conso/importé/injecté du jour (Wh) ; statut.
+- **Manufacturer** : Monitor_EV2 (affiché « par Monitor_EV2 » dans les infos appareil HA).
 
 ### 5.4 Optionnel
 

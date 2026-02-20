@@ -1,0 +1,16 @@
+{
+  "name": "Enphase V2",
+  "version": "1.0.0",
+  "home_assistant_domain": "enphase",
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        {
+          "path": "https://github.com/bobendylon/Enphase_V2/releases/latest/download/firmware.merged.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}

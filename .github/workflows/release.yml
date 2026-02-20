@@ -1,0 +1,35 @@
+# Build firmware et publier en Release GitHub
+# Déclenché quand tu crées un tag (ex: v1.0.0)
+
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build firmware (avec merged.bin)
+        run: pio run -e esp32-s3-devkitc-1
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: .pio/build/esp32-s3-devkitc-1/firmware.merged.bin
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

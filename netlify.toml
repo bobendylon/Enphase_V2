@@ -1,0 +1,3 @@
+# Netlify : publier le dossier netlify-deploy (page d'installation)
+[build]
+  publish = "netlify-deploy"

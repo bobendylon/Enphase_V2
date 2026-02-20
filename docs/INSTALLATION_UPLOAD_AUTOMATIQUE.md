@@ -110,3 +110,35 @@ Pour développer et flasher avec le câble USB :
 - `pio run -t upload`
 
 Le flash via le web et via PlatformIO utilisent le même `firmware.merged.bin` (mode DIO).
+
+---
+
+### Mise à jour OTA (WiFi)
+
+Le projet supporte OTA : mise à jour sans câble USB, via le réseau.
+
+**Prérequis** : Table de partitions `huge_app_ota.csv` (ota_0 + ota_1, 3 MB chacun). Firmware ~1.9 MB → espace suffisant.
+
+**Premier flash** : Toujours faire un flash USB complet une fois pour installer la nouvelle table de partitions.
+
+#### Option 1 — Page web intégrée (/update)
+
+1. Connecte l'ESP32 au WiFi
+2. Ouvre `http://<IP_ESP32>/update` dans le navigateur
+3. Choisis le fichier `firmware.bin` (pas le merged) :  
+   `.pio/build/esp32-s3-devkitc-1/firmware.bin`
+4. Envoie → l'ESP32 redémarre avec le nouveau firmware
+
+#### Option 2 — PlatformIO (esptool OTA)
+
+1. Modifier `upload_port` dans `platformio.ini` (env `esp32-s3-devkitc-1_ota`) avec l’IP de l’ESP32 (ex. `192.168.1.42`)
+2. Lancer :  
+   `pio run -t upload -e esp32-s3-devkitc-1_ota`
+
+**Paramètres OTA** (dans `platformio.ini`) :
+
+| Paramètre        | Valeur        | Rôle                                      |
+|------------------|---------------|-------------------------------------------|
+| `upload_protocol`| `espota`      | Utilise OTA WiFi                           |
+| `upload_port`    | `192.168.x.x` | IP de l’ESP32 sur le réseau                |
+| `upload_flags`   | `--auth=msunpv` | Mot de passe ArduinoOTA (dans main.cpp) |

@@ -1698,6 +1698,7 @@ body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-
     <a href='/wifi?from=enphase'>Config WiFi</a>
     <a href='/mqtt'>Config MQTT</a>
     <a href='/enphase-reglages'>Réglages</a>
+    <a href='/update'>🔄 Mise à jour OTA</a>
     <a href='/disclaimer?from=enphase'>Avertissement</a>
   </div>
 </div>
@@ -1810,6 +1811,7 @@ h1{color:#fbbf24;margin-bottom:8px;font-size:1.6em}
   html += "<a href='/mqtt?from=enphase'>📡 Config MQTT (broker, publication HA)</a>";
   html += "<a href='/weather?from=enphase'>🌦️ Réglages Météo</a>";
   html += "<a href='/info?from=enphase'>⚡ Réglages Tempo + Infos</a>";
+  html += "<a href='/update'>🔄 Mise à jour OTA</a>";
   html += "<span class='link-disabled'>📊 Statistiques (production, conso, 24h)</span>";
   html += "</div>";
   html += "<div class='card-exp'><h2>💾 Export / Import paramètres</h2>";
@@ -1882,8 +1884,11 @@ void handleUpdate() {
   html += "input[type='submit']:hover{background:#f59e0b}";
   html += ".back{display:inline-block;margin-bottom:20px;color:#9ca3af;text-decoration:none}";
   html += "@media (max-width: 480px){body{padding:12px}h1{font-size:1.3em}form{padding:15px}}</style></head><body>";
-  html += "<a href='/' class='back'>&larr; Retour</a>";
-  html += "<h1>🔄 MSunPV V3.1 - Mise à jour OTA</h1>";
+  html += "<a href='/enphase-monitor' class='back'>&larr; Retour</a>";
+  html += "<h1>🔄 Mise à jour OTA</h1>";
+  html += "<p style='background:rgba(251,191,36,0.15);padding:12px;border-radius:8px;border:1px solid rgba(251,191,36,0.3);margin-bottom:20px;color:#e5e7eb'>";
+  html += "⚠️ Pendant la mise à jour, l'écran peut se brouiller puis l'ESP32 redémarrera. Vous serez redirigé vers la page d'accueil.";
+  html += "</p>";
   html += "<form method='POST' action='/doUpdate' enctype='multipart/form-data'>";
   html += "<input type='file' name='update' accept='.bin' required>";
   html += "<input type='submit' value='📤 Téléverser et Installer'>";
@@ -1893,7 +1898,17 @@ void handleUpdate() {
 
 void handleDoUpdate() {
   server.sendHeader("Connection", "close");
-  server.send(200, "text/plain", (Update.hasError()) ? "ÉCHEC" : "SUCCÈS - Redémarrage...");
+  if (Update.hasError()) {
+    server.send(200, "text/plain", "ÉCHEC");
+    return;
+  }
+  String html = "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<meta http-equiv='refresh' content='20;url=/enphase-monitor'>";
+  html += "<style>body{font-family:Arial;background:#0c0a09;color:#fff;padding:20px;text-align:center}h1{color:#22c55e}a{color:#fbbf24}</style></head><body>";
+  html += "<h1>✓ Mise à jour réussie</h1>";
+  html += "<p>Redémarrage en cours... Redirection vers la page d'accueil dans 20 secondes.</p>";
+  html += "<p><a href='/enphase-monitor'>Cliquer pour aller à l'accueil</a></p></body></html>";
+  server.send(200, "text/html", html);
   delay(1000);
   ESP.restart();
 }

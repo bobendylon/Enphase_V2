@@ -22,12 +22,14 @@ def merge_bin(source, target, env):
     )
     python = env.subst("$PYTHONEXE")
 
+    # DIO requis pour le flash initial (le bootloader passe à QIO ensuite)
+    # Cf. https://github.com/esphome/esp-web-tools/issues/377
     cmd = [
         python, esptool_script,
         "--chip", "esp32s3",
         "merge_bin",
         "-o", out,
-        "--flash_mode", "qio",
+        "--flash_mode", "dio",
         "--flash_size", "16MB",
         "0x0",     bootloader,
         "0x8000",  partitions,

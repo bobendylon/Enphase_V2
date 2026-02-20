@@ -842,13 +842,13 @@ void loop() {
     stats_update();
   }
   
-  // LVGL - ⚡ ESPACÉ À 20ms AU LIEU DE 5ms (stabilité)
+  // LVGL - Option rapide réactivité tactile : 10ms + delay(2)
   static unsigned long lastLvglUpdate = 0;
-  if (now - lastLvglUpdate >= 20) {
+  if (now - lastLvglUpdate >= 10) {
     lastLvglUpdate = now;
     lv_timer_handler();
   }
-  delay(5);
+  delay(2);
 }
 
 // MISE À JOUR UI - Enphase V2 : toujours écran Enphase

@@ -11,6 +11,7 @@
 #define PREF_MQTT_PASS "mqtt_pass"
 #define PREF_MQTT_TOPIC_PREFIX "mqtt_topic_prefix"
 #define PREF_MQTT_PUBLISH_INTERVAL "mqtt_publish_interval"
+#define PREF_MQTT_HA_DISCOVERY "mqtt_ha_discovery"
 #define PREF_TOPIC_PROD "topic_prod"
 #define PREF_TOPIC_CABANE "topic_cabane"
 #define PREF_TOPIC_CONSO "topic_conso"
@@ -79,6 +80,7 @@ String config_mqtt_user;
 String config_mqtt_pass;
 String config_mqtt_topic_prefix;
 int config_mqtt_publish_interval;
+bool config_mqtt_ha_discovery;
 String config_topic_prod;
 String config_topic_cabane;
 String config_topic_conso;
@@ -189,6 +191,42 @@ static void mqtt_publish_enphase() {
   #undef PUB
 }
 
+// Publication Home Assistant MQTT Discovery (optionnel)
+static void mqtt_publish_ha_discovery() {
+  if (!mqttClient || !mqttClient->connected() || !config_mqtt_ha_discovery) return;
+  String prefix = config_mqtt_topic_prefix.length() > 0 ? config_mqtt_topic_prefix : String(DEFAULT_MQTT_TOPIC_PREFIX);
+  char topicBuf[80];
+  char payloadBuf[420];
+  const char* dev = "{\"identifiers\":[\"";
+  const char* dev2 = "\"],\"name\":\"Enphase Monitor\",\"manufacturer\":\"MSunPV\",\"model\":\"Enphase V2\"}";
+  String devBlock = String(dev) + prefix + dev2;
+
+  #define DISC_SENSOR(id, name, unit, devClass, stateClass) do { \
+    snprintf(topicBuf, sizeof(topicBuf), "homeassistant/sensor/%s/%s/config", prefix.c_str(), id); \
+    snprintf(payloadBuf, sizeof(payloadBuf), \
+      "{\"name\":\"%s\",\"unique_id\":\"%s_%s\",\"state_topic\":\"%s/%s\",\"unit_of_measurement\":\"%s\",\"device_class\":\"%s\",\"state_class\":\"%s\",\"device\":%s}", \
+      name, prefix.c_str(), id, prefix.c_str(), id, unit, devClass, stateClass, devBlock.c_str()); \
+    mqttClient->publish(topicBuf, payloadBuf, true); \
+  } while(0)
+
+  DISC_SENSOR("power_production",     "Production solaire",  "W",  "power",  "measurement");
+  DISC_SENSOR("power_consumption",    "Conso maison",       "W",  "power",  "measurement");
+  DISC_SENSOR("power_grid",           "Réseau",             "W",  "power",  "measurement");
+  DISC_SENSOR("energy_produced_today","Prod jour",          "Wh", "energy", "total_increasing");
+  DISC_SENSOR("energy_consumed_today","Conso jour",         "Wh", "energy", "total_increasing");
+  DISC_SENSOR("energy_imported_today","Importé jour",       "Wh", "energy", "total_increasing");
+  DISC_SENSOR("energy_injected_today","Injecté jour",       "Wh", "energy", "total_increasing");
+
+  snprintf(topicBuf, sizeof(topicBuf), "homeassistant/sensor/%s/status/config", prefix.c_str());
+  snprintf(payloadBuf, sizeof(payloadBuf),
+    "{\"name\":\"Statut\",\"unique_id\":\"%s_status\",\"state_topic\":\"%s/status\",\"device\":%s}",
+    prefix.c_str(), prefix.c_str(), devBlock.c_str());
+  mqttClient->publish(topicBuf, payloadBuf, true);
+
+  #undef DISC_SENSOR
+  addLog("[MQTT] Home Assistant Discovery publie");
+}
+
 // Reconnexion MQTT (LWT = offline sur <prefix>/status)
 void mqtt_reconnect() {
   // Enphase V2 : connexion optionnelle — si IP vide, ne pas tenter
@@ -222,6 +260,7 @@ void mqtt_reconnect() {
       mqttDataReceived = true;
       mqtt_doSubscribeListen();
       mqtt_publish_enphase();
+      mqtt_publish_ha_discovery();
       lastMqttPublish = millis();
     } else {
       addLogf("Connexion MQTT échec, code=%d", mqttClient->state());
@@ -294,6 +333,7 @@ void mqtt_loadConfig(Preferences* prefs) {
   config_mqtt_publish_interval = prefs->getInt(PREF_MQTT_PUBLISH_INTERVAL, DEFAULT_MQTT_PUBLISH_INTERVAL);
   if (config_mqtt_publish_interval < 5) config_mqtt_publish_interval = 5;
   if (config_mqtt_publish_interval > 300) config_mqtt_publish_interval = 300;
+  config_mqtt_ha_discovery = prefs->getBool(PREF_MQTT_HA_DISCOVERY, true);
   config_topic_prod = prefs->getString(PREF_TOPIC_PROD, DEFAULT_TOPIC_SOLAR_PROD);
   config_topic_cabane = prefs->getString(PREF_TOPIC_CABANE, DEFAULT_TOPIC_SOLAR_CABANE);
   config_topic_conso = prefs->getString(PREF_TOPIC_CONSO, DEFAULT_TOPIC_HOME_CONSO);
@@ -320,6 +360,7 @@ void mqtt_saveConfig(Preferences* prefs) {
   prefs->putString(PREF_MQTT_PASS, config_mqtt_pass);
   prefs->putString(PREF_MQTT_TOPIC_PREFIX, config_mqtt_topic_prefix);
   prefs->putInt(PREF_MQTT_PUBLISH_INTERVAL, config_mqtt_publish_interval);
+  prefs->putBool(PREF_MQTT_HA_DISCOVERY, config_mqtt_ha_discovery);
   prefs->putString(PREF_TOPIC_PROD, config_topic_prod);
   prefs->putString(PREF_TOPIC_CABANE, config_topic_cabane);
   prefs->putString(PREF_TOPIC_CONSO, config_topic_conso);
@@ -508,6 +549,15 @@ void mqtt_handleConfig(WebServer* server) {
   html += R"(" min="5" max="300" step="1" placeholder="15">
         <div class="hint">Entre 5 et 300 s. Defaut: 15 s.</div>
       </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" name="mqtt_ha_discovery" value="1" )";
+  html += config_mqtt_ha_discovery ? "checked" : "";
+  html += R"(>
+          Activer Home Assistant Discovery
+        </label>
+        <div class="hint">Si coché, les entités seront créées automatiquement dans HA (sans config manuelle).</div>
+      </div>
       <button type="submit" class="btn">Enregistrer et Redemarrer</button>
       <button type="button" class="btn btn-secondary" onclick="location.href='/'">Annuler</button>
     </form>
@@ -573,6 +623,7 @@ void mqtt_handleSaveConfig(WebServer* server) {
     config_mqtt_publish_interval = server->arg("mqtt_publish_interval").toInt();
     if (config_mqtt_publish_interval < 5) config_mqtt_publish_interval = 5;
     if (config_mqtt_publish_interval > 300) config_mqtt_publish_interval = 300;
+    config_mqtt_ha_discovery = server->hasArg("mqtt_ha_discovery");
     
     // Sauvegarder dans NVS
     extern Preferences preferences;

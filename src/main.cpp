@@ -1694,6 +1694,7 @@ body{background:linear-gradient(135deg,#0c0a09 0%,#1c1917 100%);color:#fff;font-
     <span id='icoWifi' class='ko' title='WiFi'>📶</span>
     <span id='icoMqtt' class='ko' title='MQTT'>📡</span>
     <span id='icoEnphase' class='ko' title='Enphase'>⚡</span>
+    <a href='/wifi?from=enphase'>Config WiFi</a>
     <a href='/mqtt'>Config MQTT</a>
     <a href='/enphase-reglages'>Réglages</a>
     <a href='/disclaimer?from=enphase'>Avertissement</a>
@@ -2920,7 +2921,8 @@ void handleWifiConfig() {
     
     <div class="form-group">
       <label>Scanner les réseaux</label>
-      <button type="button" class="btn" onclick="wifiScan()" style="margin-bottom:10px">📡 Scanner</button>
+      <p class="current-value" style="margin-bottom:8px">Cliquez pour lister les réseaux visibles, puis sélectionnez un réseau pour changer de WiFi.</p>
+      <button type="button" class="btn" onclick="wifiScan()" style="margin-bottom:10px">📡 Scanner les réseaux</button>
       <div id="wifiScanList" style="max-height:180px;overflow-y:auto;border:1px solid #374151;border-radius:8px;padding:8px;display:none"></div>
     </div>
     
